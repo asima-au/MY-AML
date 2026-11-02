@@ -7,124 +7,96 @@
   <meta name="description" content="AUSTRAC Tranche 2 AML/CTF readiness assessment, gap analysis and data pack." />
   <!-- Worker API base URL, e.g. https://aml-tranche2-assessor.<account>.workers.dev. Empty = same origin (localhost uses :8787). -->
   <meta name="aml-api-base" content="" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" />
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    const token = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: Object.fromEntries(
+            ["bg", "surface", "surface-2", "ink", "muted", "line", "brand", "brand-soft", "on-brand", "crit", "crit-soft", "high", "high-soft", "med", "med-soft", "ok", "ok-soft"].map((n) => [n, token(n)]),
+          ),
+          fontFamily: {
+            display: ['"Bricolage Grotesque"', "ui-sans-serif", "system-ui", "sans-serif"],
+            sans: ["Geist", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+            mono: ['"Geist Mono"', "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+          },
+        },
+      },
+    };
+  </script>
   <style>
-    .score-ring { background: conic-gradient(var(--ring-color) calc(var(--score) * 1%), rgb(226 232 240) 0); }
-    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+    /* Layout: sticky top bar with progress; start = intro + business card; questions = section rail (lg) + one focused question; results = stacked report. */
+    :root {
+      --bg: 243 246 245; --surface: 255 255 255; --surface-2: 234 239 237; --ink: 15 27 25; --muted: 78 95 91; --line: 213 222 219;
+      --brand: 12 92 86; --brand-soft: 219 239 235; --on-brand: 255 255 255;
+      --crit: 185 28 28; --crit-soft: 254 226 226; --high: 194 65 12; --high-soft: 255 237 213;
+      --med: 146 89 6; --med-soft: 254 243 199; --ok: 21 128 61; --ok-soft: 220 252 231;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: 10 17 16; --surface: 17 27 26; --surface-2: 25 38 36; --ink: 229 238 235; --muted: 150 169 164; --line: 41 58 55;
+        --brand: 94 206 190; --brand-soft: 18 52 49; --on-brand: 5 28 26;
+        --crit: 252 129 129; --crit-soft: 72 22 22; --high: 251 154 84; --high-soft: 70 33 10; --med: 250 204 21; --med-soft: 60 46 8; --ok: 74 222 128; --ok-soft: 14 52 31;
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: 10 17 16; --surface: 17 27 26; --surface-2: 25 38 36; --ink: 229 238 235; --muted: 150 169 164; --line: 41 58 55;
+      --brand: 94 206 190; --brand-soft: 18 52 49; --on-brand: 5 28 26;
+      --crit: 252 129 129; --crit-soft: 72 22 22; --high: 251 154 84; --high-soft: 70 33 10; --med: 250 204 21; --med-soft: 60 46 8; --ok: 74 222 128; --ok-soft: 14 52 31;
+      color-scheme: dark;
+    }
+    body { background: rgb(var(--bg)); color: rgb(var(--ink)); font-family: Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 40; background: rgb(var(--bg)); }
+    [hidden] { display: none !important; }
+    h1, h2, h3 { text-wrap: balance; }
+    .sticky-top { top: env(safe-area-inset-top, 0px); }
+    .tabular { font-variant-numeric: tabular-nums; }
+    .view-enter { animation: rise .32s cubic-bezier(.2, .7, .2, 1); }
+    @keyframes rise { from { opacity: .4; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    .gauge-arc { transition: stroke-dasharray 1s cubic-bezier(.2, .7, .2, 1); }
+    .no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
   </style>
 </head>
-<body class="min-h-full bg-slate-50 text-slate-900 antialiased">
-  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:shadow">Skip to content</a>
+<body class="min-h-full antialiased">
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:shadow-lg">Skip to content</a>
 
-  <header class="border-b border-slate-200 bg-white">
-    <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700">AUSTRAC Tranche 2 readiness</p>
-        <h1 class="text-lg font-bold sm:text-xl">AML TurboTax for Tranche 2</h1>
-      </div>
-      <p id="ruleset-badge" class="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 sm:block"></p>
+  <header class="sticky-top sticky z-30 border-b border-line/70 bg-bg/85 backdrop-blur-md">
+    <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+      <button type="button" id="home-btn" class="group flex items-center gap-3 rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+        <span class="grid h-9 w-9 place-items-center rounded-xl bg-brand text-on-brand shadow-sm transition-transform group-hover:-rotate-6">
+          <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>
+        </span>
+        <span>
+          <span class="block font-display text-[15px] font-bold leading-tight sm:text-base">AML TurboTax</span>
+          <span class="block text-xs text-muted">for Tranche 2</span>
+        </span>
+      </button>
+      <span id="ruleset-badge" hidden class="rounded-full border border-line bg-surface px-3 py-1 font-mono text-[11px] text-muted"></span>
+    </div>
+    <div class="h-1 w-full bg-line/50" role="progressbar" id="progress" aria-label="Assessment progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div id="progress-bar" class="h-full rounded-r-full bg-brand transition-[width] duration-500 ease-out" style="width:0%"></div>
     </div>
   </header>
 
-  <main id="main" class="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-    <div id="alert" role="alert" class="mb-6 hidden rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800"></div>
-
-    <!-- Wizard -->
-    <section id="wizard" aria-labelledby="step-title" class="hidden">
-      <nav aria-label="Assessment progress" class="mb-8">
-        <div class="mb-2 flex items-center justify-between text-sm">
-          <span id="progress-label" class="font-medium text-slate-700"></span>
-          <span id="answered-label" class="text-slate-600"></span>
-        </div>
-        <div class="h-2 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" id="progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Assessment progress">
-          <div id="progress-bar" class="h-full rounded-full bg-emerald-600 transition-all duration-500 ease-out" style="width:0%"></div>
-        </div>
-        <ol id="step-list" class="mt-4 hidden gap-2 text-xs md:flex"></ol>
-      </nav>
-
-      <form id="wizard-form" novalidate class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
-        <h2 id="step-title" tabindex="-1" class="text-xl font-bold focus:outline-none sm:text-2xl"></h2>
-        <p id="step-summary" class="mt-1 text-sm text-slate-600"></p>
-        <div id="step-refs" class="mt-3 flex flex-wrap gap-2"></div>
-        <div id="step-body" class="mt-6 space-y-4"></div>
-
-        <div class="mt-8 flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-between">
-          <button type="button" id="back-btn" class="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40">Back</button>
-          <button type="submit" id="next-btn" class="rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60">Next</button>
-        </div>
-      </form>
-    </section>
-
-    <!-- Results -->
-    <section id="results" aria-labelledby="results-title" class="hidden space-y-6">
-      <div class="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 md:flex-row md:items-center lg:p-8">
-        <div id="score-ring" class="score-ring mx-auto grid h-36 w-36 shrink-0 place-items-center rounded-full md:mx-0" style="--score:0;--ring-color:#047857">
-          <div class="grid h-28 w-28 place-items-center rounded-full bg-white text-center">
-            <div>
-              <p id="score-value" class="text-3xl font-bold">0</p>
-              <p class="text-xs text-slate-600">risk / 100</p>
-            </div>
-          </div>
-        </div>
-        <div class="min-w-0 flex-1">
-          <p id="result-sector" class="text-xs font-semibold uppercase tracking-wider text-slate-600"></p>
-          <h2 id="results-title" tabindex="-1" class="mt-1 text-xl font-bold focus:outline-none sm:text-2xl"></h2>
-          <p class="mt-2"><span id="tier-badge" class="inline-block rounded-full px-3 py-1 text-sm font-semibold"></span></p>
-          <dl class="mt-4 grid grid-cols-3 gap-3 text-center sm:max-w-md">
-            <div class="rounded-lg bg-slate-50 p-3"><dt class="text-xs text-slate-600">Critical gaps</dt><dd id="stat-critical" class="text-xl font-bold"></dd></div>
-            <div class="rounded-lg bg-slate-50 p-3"><dt class="text-xs text-slate-600">Total gaps</dt><dd id="stat-gaps" class="text-xl font-bold"></dd></div>
-            <div class="rounded-lg bg-slate-50 p-3"><dt class="text-xs text-slate-600">Unanswered</dt><dd id="stat-unanswered" class="text-xl font-bold"></dd></div>
-          </dl>
-        </div>
-      </div>
-
-      <section aria-labelledby="datapack-title" class="rounded-2xl border-2 border-emerald-700 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h3 id="datapack-title" class="text-lg font-bold">AUSTRAC data pack</h3>
-            <p class="mt-1 text-sm text-slate-600">Tab-delimited <code class="rounded bg-slate-100 px-1">FIELD_ID · VALUE · AUDIT_TRAIL</code> rows. Paste into a spreadsheet, your compliance register, or a tabular form field.</p>
-          </div>
-          <div class="flex shrink-0 flex-col gap-2 sm:flex-row">
-            <button type="button" id="copy-btn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow transition-all hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 active:scale-95">
-              <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              <span id="copy-label">Copy Data Pack for AUSTRAC</span>
-            </button>
-            <button type="button" id="download-btn" class="rounded-lg border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Download .tsv</button>
-          </div>
-        </div>
-        <label for="payload" class="sr-only">Tab-delimited AUSTRAC data pack</label>
-        <textarea id="payload" readonly rows="10" wrap="off" class="mt-4 w-full resize-y rounded-lg border border-slate-300 bg-slate-50 p-3 font-mono text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600"></textarea>
-        <p id="copy-status" role="status" aria-live="polite" class="mt-2 min-h-[1.25rem] text-sm font-medium text-emerald-800"></p>
-      </section>
-
-      <section aria-labelledby="gaps-title" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
-        <h3 id="gaps-title" class="text-lg font-bold">Gap analysis</h3>
-        <ul id="gap-list" class="mt-4 space-y-3"></ul>
-      </section>
-
-      <div class="grid gap-6 lg:grid-cols-2">
-        <section aria-labelledby="pillars-title" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <h3 id="pillars-title" class="text-lg font-bold">Pillar breakdown</h3>
-          <ul id="pillar-list" class="mt-4 space-y-4"></ul>
-        </section>
-        <section aria-labelledby="risks-title" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <h3 id="risks-title" class="text-lg font-bold">Inherent risk factors</h3>
-          <ul id="risk-list" class="mt-4 list-disc space-y-2 pl-5 text-sm text-slate-700"></ul>
-        </section>
-      </div>
-
-      <div class="flex flex-col gap-3 sm:flex-row">
-        <button type="button" id="edit-btn" class="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Edit answers</button>
-        <button type="button" id="restart-btn" class="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Start new assessment</button>
-      </div>
-    </section>
-
-    <p id="loading" class="py-16 text-center text-sm text-slate-600">Loading questionnaire…</p>
+  <main id="main" class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+    <div id="alert" role="alert" hidden class="mb-6 rounded-xl border border-crit/30 bg-crit-soft p-4 text-sm text-crit"></div>
+    <div id="view"></div>
+    <p id="loading" class="py-24 text-center text-sm text-muted">Loading questionnaire…</p>
   </main>
 
-  <footer class="border-t border-slate-200 bg-white">
-    <p id="disclaimer" class="mx-auto max-w-5xl px-4 py-6 text-xs leading-relaxed text-slate-600 sm:px-6 lg:px-8"></p>
+  <footer class="border-t border-line/70">
+    <p id="disclaimer" class="mx-auto max-w-6xl px-4 py-6 text-xs leading-relaxed text-muted sm:px-6 lg:px-8"></p>
   </footer>
+
+  <div class="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+    <p id="toast" role="status" aria-live="polite" class="translate-y-4 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-bg opacity-0 shadow-xl transition-all duration-300"></p>
+  </div>
 
   <script>
   "use strict";
@@ -135,277 +107,590 @@
       return ["localhost", "127.0.0.1"].includes(location.hostname) && location.port !== "8787" ? "http://localhost:8787" : "";
     })();
 
-    const SEVERITY_STYLE = {
-      critical: "bg-red-100 text-red-800 ring-red-300",
-      high: "bg-orange-100 text-orange-900 ring-orange-300",
-      medium: "bg-amber-100 text-amber-900 ring-amber-300",
-      low: "bg-slate-100 text-slate-800 ring-slate-300",
+    const SEVERITY = {
+      critical: { label: "Critical", pill: "bg-crit-soft text-crit", dot: "bg-crit" },
+      high: { label: "High", pill: "bg-high-soft text-high", dot: "bg-high" },
+      medium: { label: "Medium", pill: "bg-med-soft text-med", dot: "bg-med" },
+      low: { label: "Low", pill: "bg-surface-2 text-muted", dot: "bg-muted" },
     };
-    const TIER_STYLE = {
-      CRITICAL: { badge: "bg-red-700 text-white", ring: "#b91c1c", label: "Not ready" },
-      HIGH: { badge: "bg-orange-700 text-white", ring: "#c2410c", label: "Significant gaps" },
-      MODERATE: { badge: "bg-amber-100 text-amber-900", ring: "#b45309", label: "Action required" },
-      LOW: { badge: "bg-emerald-700 text-white", ring: "#047857", label: "Maintain and evidence" },
-      SCOPE_UNCONFIRMED: { badge: "bg-slate-700 text-white", ring: "#334155", label: "Confirm designated services" },
+    const TIERS = {
+      CRITICAL: { label: "Not ready", token: "crit", pill: "bg-crit-soft text-crit" },
+      HIGH: { label: "Significant gaps", token: "high", pill: "bg-high-soft text-high" },
+      MODERATE: { label: "Action required", token: "med", pill: "bg-med-soft text-med" },
+      LOW: { label: "On track", token: "ok", pill: "bg-ok-soft text-ok" },
+      SCOPE_UNCONFIRMED: { label: "Confirm designated services", token: "muted", pill: "bg-surface-2 text-ink" },
     };
+    const SECTOR_ICONS = {
+      real_estate: ["M3 10.5 12 3l9 7.5", "M5 9v11a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9"],
+      legal_tcsp: ["M12 3v18", "M7 21h10", "M5 7h14", "M5 7l-3 7a3 3 0 0 0 6 0z", "M19 7l-3 7a3 3 0 0 0 6 0z"],
+      accounting: ["M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z", "M8.5 6h7v4h-7z", "M9 14h.01M12 14h.01M15 14h.01M9 18h.01M12 18h.01M15 18h.01"],
+    };
+    const fmt = new Intl.NumberFormat("en-AU");
+    /** The UI shows a "Skipped" tag, so drop the engine's text prefix for unanswered items. */
+    const cleanFinding = (text) => text.replace(/^Not answered — scored as [^:]+: /, "");
 
-    const state = { questionnaire: null, sectorId: "", meta: { organizationName: "", location: "", assessmentTarget: "AUSTRAC Tranche 2 Readiness Review" }, answers: {}, stepIndex: 0, result: null };
+    const freshMeta = () => ({ organizationName: "", location: "", assessmentTarget: "AUSTRAC Tranche 2 Readiness Review" });
+    const state = { questionnaire: null, sectorId: "", meta: freshMeta(), answers: {}, view: "start", qIndex: 0, result: null, gapFilter: "all", advancing: false, startErrors: {} };
     const $ = (id) => document.getElementById(id);
 
-    /** Minimal DOM builder — text is always set via textContent (never innerHTML). */
+    // ---- DOM helpers: text is always set via textContent, never innerHTML ----
     function h(tag, attrs = {}, ...children) {
       const el = document.createElement(tag);
+      applyAttrs(el, attrs);
+      appendChildren(el, children);
+      return el;
+    }
+    function s(tag, attrs = {}, ...children) {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      applyAttrs(el, attrs);
+      appendChildren(el, children);
+      return el;
+    }
+    function applyAttrs(el, attrs) {
       for (const [key, value] of Object.entries(attrs)) {
         if (value === undefined || value === null || value === false) continue;
-        if (key === "class") el.className = value;
+        if (key === "class") el.setAttribute("class", value);
         else if (key.startsWith("on")) el.addEventListener(key.slice(2), value);
-        else el.setAttribute(key, value === true ? "" : value);
+        else el.setAttribute(key, value === true ? "" : String(value));
       }
+    }
+    function appendChildren(el, children) {
       for (const child of children.flat()) {
         if (child === null || child === undefined || child === false) continue;
         el.append(child instanceof Node ? child : document.createTextNode(String(child)));
       }
-      return el;
     }
+    const icon = (paths, cls = "h-5 w-5") =>
+      s("svg", { viewBox: "0 0 24 24", class: cls, fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, ...paths.map((d) => s("path", { d })));
+    const ICON = {
+      check: ["m5 12.5 4.5 4.5L19 7.5"], cross: ["M6 6l12 12M18 6 6 18"], arrowRight: ["M5 12h14", "m13 6 6 6-6 6"], arrowLeft: ["M19 12H5", "m11 6-6 6 6 6"],
+      copy: ["M9 9h11v11H9z", "M5 15H4V4h11v1"], download: ["M12 3v12", "m7 10 5 5 5-5", "M4 21h16"], gauge: ["M4 15a8 8 0 1 1 16 0", "m12 15 4-5"],
+      list: ["M9 6h11M9 12h11M9 18h11", "M4 6h.01M4 12h.01M4 18h.01"], table: ["M3 5h18v14H3z", "M3 10h18M9 10v9"], info: ["M12 8h.01", "M11 12h1v5h1", "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"],
+      alert: ["M12 9v4M12 17h.01", "M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"],
+    };
+
+    const btnPrimary = "inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-on-brand shadow-sm transition-all hover:brightness-110 active:scale-[.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-wait disabled:opacity-60";
+    const btnGhost = "inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-40";
+    const card = "rounded-3xl border border-line bg-surface shadow-[0_1px_2px_rgb(0_0_0/.04),0_8px_24px_-12px_rgb(0_0_0/.12)]";
+    const inputCls = "mt-1.5 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/70 transition-shadow focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15";
 
     function showAlert(message) {
-      const alert = $("alert");
-      alert.textContent = message;
-      alert.classList.toggle("hidden", !message);
+      $("alert").textContent = message;
+      $("alert").hidden = !message;
+    }
+    let toastTimer;
+    function toast(message) {
+      const el = $("toast");
+      el.textContent = message;
+      el.classList.remove("opacity-0", "translate-y-4");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.add("opacity-0", "translate-y-4"), 2600);
     }
 
-    const sector = () => state.questionnaire.sectors.find((s) => s.id === state.sectorId);
-    const questions = () => (sector() ? sector().questions : []);
+    // ---- Questionnaire model ----
+    const sector = () => state.questionnaire.sectors.find((x) => x.id === state.sectorId);
+    const pillarOf = (id) => state.questionnaire.pillars.find((p) => p.id === id);
     const answerOf = (id) => state.answers[id];
+    const isVisible = (q) => !q.showIf || q.showIf.anyOf.some((c) => answerOf(c.questionId) === c.equals);
+    function orderedQuestions() {
+      if (!sector()) return [];
+      return state.questionnaire.pillars.flatMap((p) => sector().questions.filter((q) => q.pillar === p.id));
+    }
+    const visibleQuestions = () => orderedQuestions().filter(isVisible);
+    function sections() {
+      const vis = visibleQuestions();
+      return state.questionnaire.pillars
+        .map((pillar) => ({ pillar, questions: vis.filter((q) => q.pillar === pillar.id) }))
+        .filter((sec) => sec.questions.length > 0);
+    }
+    const answeredCount = (qs) => qs.filter((q) => answerOf(q.id) !== undefined).length;
 
-    function isVisible(q) {
-      return !q.showIf || q.showIf.anyOf.some((c) => answerOf(c.questionId) === c.equals);
+    // ---- Navigation ----
+    function go(view, qIndex = state.qIndex) {
+      state.view = view;
+      state.qIndex = qIndex;
+      render(true);
+    }
+    function jumpTo(questionId) {
+      const idx = visibleQuestions().findIndex((q) => q.id === questionId);
+      go("question", Math.max(0, idx));
+    }
+    function advanceFrom(questionId) {
+      const vis = visibleQuestions();
+      const next = vis.findIndex((q) => q.id === questionId) + 1;
+      if (next >= vis.length) go("review");
+      else go("question", next);
+    }
+    function back() {
+      if (state.view === "review") go("question", visibleQuestions().length - 1);
+      else if (state.view === "question" && state.qIndex > 0) go("question", state.qIndex - 1);
+      else go("start");
+    }
+    function answer(q, value) {
+      if (state.advancing) return;
+      state.answers[q.id] = value;
+      state.advancing = true;
+      render(false);
+      setTimeout(() => { state.advancing = false; advanceFrom(q.id); }, 240);
     }
 
-    function steps() {
-      const list = [{ id: "profile", title: "Organisation profile", summary: "Tell us who is being assessed and which industry vertical applies." }];
-      if (!sector()) return list;
-      for (const pillar of state.questionnaire.pillars) {
-        const qs = questions().filter((q) => q.pillar === pillar.id);
-        if (qs.length) list.push({ id: pillar.id, title: pillar.title, summary: pillar.summary, pillar, questions: qs });
+    // ---- Views ----
+    function render(animate) {
+      const view = $("view");
+      const builders = { start: viewStart, question: viewQuestion, review: viewReview, results: viewResults };
+      view.replaceChildren(builders[state.view]());
+      if (animate) {
+        view.classList.remove("view-enter");
+        void view.offsetWidth;
+        view.classList.add("view-enter");
+        const heading = view.querySelector("[data-autofocus]");
+        if (heading) heading.focus({ preventScroll: true });
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
-      return list;
+      updateProgress();
     }
 
     function updateProgress() {
-      const all = steps();
-      const total = all.length;
-      const pct = Math.round((state.stepIndex / total) * 100);
+      const total = visibleQuestions().length || 1;
+      const pct = state.view === "start" ? 0 : state.view === "question" ? Math.round((state.qIndex / total) * 100) : 100;
       $("progress-bar").style.width = pct + "%";
       $("progress").setAttribute("aria-valuenow", String(pct));
-      $("progress-label").textContent = `Step ${state.stepIndex + 1} of ${total}: ${all[state.stepIndex].title}`;
-      const visible = questions().filter(isVisible);
-      const answered = visible.filter((q) => answerOf(q.id) !== undefined).length;
-      $("answered-label").textContent = sector() ? `${answered} of ${visible.length} answered` : "";
-
-      const list = $("step-list");
-      list.replaceChildren(
-        ...all.map((step, i) =>
-          h("li", { class: `flex-1 rounded-md px-2 py-1.5 text-center transition-colors ${i === state.stepIndex ? "bg-emerald-700 font-semibold text-white" : i < state.stepIndex ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-600"}`, "aria-current": i === state.stepIndex ? "step" : null }, step.title),
-        ),
-      );
     }
 
-    function toggleGroup(q) {
-      const labelId = `q-${q.id}-label`;
-      const current = answerOf(q.id);
-      const option = (value, text) =>
-        h("button", {
-          type: "button",
-          "aria-pressed": String(current === value),
-          class: `min-w-[5rem] rounded-lg px-4 py-2 text-sm font-semibold ring-1 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
-            current === value ? (value ? "bg-emerald-700 text-white ring-emerald-700" : "bg-slate-800 text-white ring-slate-800") : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50"
-          }`,
-          onclick: () => { state.answers[q.id] = value; renderStep(); },
-        }, text);
-      return h("div", { role: "group", "aria-labelledby": labelId, class: "flex shrink-0 gap-2" }, option(true, "Yes"), option(false, "No"));
-    }
-
-    function numberInput(q) {
-      const current = answerOf(q.id);
-      return h("input", {
-        id: `q-${q.id}`, type: "number", min: "0", max: String(q.max), step: q.input === "currency" ? "1000" : "1", inputmode: "numeric",
-        value: current === undefined ? "" : String(current),
-        "aria-describedby": `q-${q.id}-help`,
-        class: "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition-shadow focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600 sm:w-56",
-        oninput: (e) => {
-          const raw = e.target.value;
-          if (raw === "") delete state.answers[q.id];
-          else if (Number.isFinite(Number(raw)) && Number(raw) >= 0) state.answers[q.id] = Number(raw);
-          updateProgress();
-        },
-      });
-    }
-
-    function questionCard(q) {
-      const severity = SEVERITY_STYLE[q.severity];
-      const control = q.input === "boolean" ? toggleGroup(q) : numberInput(q);
-      const promptEl = q.input === "boolean"
-        ? h("p", { id: `q-${q.id}-label`, class: "font-medium text-slate-900" }, q.prompt)
-        : h("label", { for: `q-${q.id}`, id: `q-${q.id}-label`, class: "font-medium text-slate-900" }, q.prompt);
-      return h("div", { class: "rounded-xl border border-slate-200 p-4 transition-colors hover:border-slate-300 sm:p-5" },
-        h("div", { class: "flex flex-col gap-4 md:flex-row md:items-start md:justify-between" },
-          h("div", { class: "min-w-0" },
-            q.weight > 0 ? h("span", { class: `mb-2 inline-block rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ${severity}` }, q.severity) : null,
-            promptEl,
-            h("p", { id: `q-${q.id}-help`, class: "mt-1 text-sm text-slate-600" }, q.help),
-            q.references.length ? h("p", { class: "mt-2 text-xs text-slate-500" }, "Ref: " + q.references.map((r) => `${r.instrument} ${r.provision}`).join("; ")) : null,
-          ),
-          control,
-        ),
-      );
-    }
-
-    function profileStep() {
-      const field = (key, label, required, placeholder) =>
-        h("div", {},
-          h("label", { for: `meta-${key}`, class: "block text-sm font-medium text-slate-900" }, label, required ? h("span", { class: "text-red-700" }, " *") : null),
+    function viewStart() {
+      const sample = window.AML_SAMPLE_PAYLOAD;
+      const errors = state.startErrors;
+      const count = visibleQuestions().length;
+      const field = (key, label, required, placeholder) => {
+        const err = errors[key];
+        return h("div", {},
+          h("label", { for: `meta-${key}`, class: "text-sm font-medium" }, label, required ? null : h("span", { class: "font-normal text-muted" }, " (optional)")),
           h("input", {
-            id: `meta-${key}`, type: "text", maxlength: "160", required, placeholder, value: state.meta[key],
-            class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition-shadow focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600",
+            id: `meta-${key}`, type: "text", maxlength: "160", autocomplete: key === "organizationName" ? "organization" : "address-level2",
+            placeholder, value: state.meta[key], class: inputCls, "aria-invalid": err ? "true" : null, "aria-describedby": err ? `meta-${key}-err` : null,
             oninput: (e) => { state.meta[key] = e.target.value; },
           }),
+          err ? h("p", { id: `meta-${key}-err`, class: "mt-1 text-xs font-medium text-crit" }, err) : null,
         );
-      const sectorCards = state.questionnaire.sectors.map((s) =>
-        h("label", { class: `flex cursor-pointer flex-col gap-1 rounded-xl border p-4 transition-all focus-within:ring-2 focus-within:ring-emerald-600 ${state.sectorId === s.id ? "border-emerald-700 bg-emerald-50" : "border-slate-200 hover:border-slate-300"}` },
-          h("span", { class: "flex items-center gap-2" },
-            h("input", { type: "radio", name: "businessType", value: s.id, checked: state.sectorId === s.id, class: "h-4 w-4 accent-emerald-700", onchange: () => { if (state.sectorId !== s.id) { state.sectorId = s.id; state.answers = {}; } renderStep(); } }),
-            h("span", { class: "font-semibold" }, s.label),
+      };
+      const sectorTile = (sec) => {
+        const selected = state.sectorId === sec.id;
+        return h("label", { class: `group relative flex cursor-pointer items-start gap-3 rounded-2xl border p-3.5 transition-all focus-within:ring-2 focus-within:ring-brand ${selected ? "border-brand bg-brand-soft" : "border-line bg-surface hover:border-muted/50 hover:bg-surface-2/60"}` },
+          h("input", { type: "radio", name: "businessType", value: sec.id, checked: selected, class: "sr-only", onchange: () => { if (state.sectorId !== sec.id) { state.sectorId = sec.id; state.answers = {}; } state.startErrors = { ...state.startErrors, sector: "" }; render(false); } }),
+          h("span", { class: `grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-colors ${selected ? "bg-brand text-on-brand" : "bg-surface-2 text-ink"}` }, icon(SECTOR_ICONS[sec.id])),
+          h("span", { class: "min-w-0" },
+            h("span", { class: "block text-sm font-semibold leading-snug" }, sec.label),
+            h("span", { class: "mt-0.5 block text-xs leading-relaxed text-muted" }, sec.summary),
           ),
-          h("span", { class: "text-sm text-slate-600" }, s.summary),
+          selected ? h("span", { class: "absolute right-3 top-3 text-brand" }, icon(ICON.check, "h-4 w-4")) : null,
+        );
+      };
+      const benefit = (paths, title, text) =>
+        h("li", { class: "flex gap-3" },
+          h("span", { class: "grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand" }, icon(paths, "h-[18px] w-[18px]")),
+          h("span", {}, h("span", { class: "block text-sm font-semibold" }, title), h("span", { class: "block text-sm text-muted" }, text)),
+        );
+
+      return h("div", { class: "grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-14" },
+        h("section", { class: "lg:pt-8" },
+          h("p", { class: "text-xs font-semibold uppercase tracking-[.14em] text-brand" }, "AUSTRAC · AML/CTF Amendment Act 2024"),
+          h("h1", { tabindex: "-1", "data-autofocus": true, class: "mt-3 font-display text-4xl font-bold leading-[1.05] tracking-tight focus:outline-none sm:text-5xl lg:text-[3.5rem]" }, "Know where you stand under Tranche 2."),
+          h("p", { class: "mt-4 max-w-[34rem] text-base leading-relaxed text-muted sm:text-lg" },
+            "Answer plain yes/no questions about how your firm works. You get a risk score, a gap register that cites the AML/CTF Act and Rules, and a data pack ready to paste."),
+          h("ul", { class: "mt-8 grid gap-5 sm:grid-cols-3 lg:grid-cols-1 lg:gap-4" },
+            benefit(ICON.gauge, "Risk score out of 100", "Weighted across five obligation pillars."),
+            benefit(ICON.list, "Prioritised gap register", "Each gap tied to its legal reference."),
+            benefit(ICON.table, "One-click data pack", "Tab-delimited rows for your records."),
+          ),
+        ),
+        h("form", { class: `${card} p-5 sm:p-7`, novalidate: true, onsubmit: (e) => { e.preventDefault(); startAssessment(); } },
+          h("div", { class: "flex items-baseline justify-between gap-3" },
+            h("h2", { class: "font-display text-xl font-bold" }, "Your business"),
+            count ? h("span", { class: "tabular text-xs text-muted" }, `${count} questions · about ${Math.max(5, Math.round(count / 3))} min`) : null,
+          ),
+          sample ? h("button", { type: "button", class: "mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-brand/50 bg-brand-soft/60 px-4 py-3 text-left text-sm transition-colors hover:bg-brand-soft", onclick: () => loadSample(sample) },
+            h("span", {}, h("span", { class: "block font-semibold text-brand" }, "Try the example"), h("span", { class: "block text-xs text-muted" }, `${sample.meta.organizationName} · sample answers`)),
+            h("span", { class: "text-brand" }, icon(ICON.arrowRight, "h-4 w-4")),
+          ) : null,
+          h("div", { class: "mt-5 grid gap-4 sm:grid-cols-2" },
+            field("organizationName", "Business name", true, "e.g. Harbourside Realty"),
+            field("location", "Suburb and state", false, "e.g. Fitzroy, VIC"),
+          ),
+          h("fieldset", { class: "mt-6", "aria-describedby": errors.sector ? "sector-err" : null },
+            h("legend", { class: "text-sm font-medium" }, "What does your business do?"),
+            h("div", { class: "mt-2 grid gap-2.5" }, state.questionnaire.sectors.map(sectorTile)),
+            errors.sector ? h("p", { id: "sector-err", class: "mt-2 text-xs font-medium text-crit" }, errors.sector) : null,
+          ),
+          h("button", { type: "submit", class: `${btnPrimary} mt-6 w-full py-3.5 text-[15px]` }, "Start assessment", icon(ICON.arrowRight, "h-4 w-4")),
+          h("p", { class: "mt-3 text-center text-xs text-muted" }, "Your answers are not saved. Skip anything you're unsure of and come back to it."),
         ),
       );
-      return [
-        h("div", { class: "grid gap-4 md:grid-cols-2" },
-          field("organizationName", "Organisation name", true, "e.g. Boutique Prestige Realty"),
-          field("location", "Location", false, "e.g. South Yarra, VIC"),
-        ),
-        h("fieldset", { class: "mt-2" },
-          h("legend", { class: "mb-3 text-sm font-medium text-slate-900" }, "Industry vertical ", h("span", { class: "text-red-700" }, "*")),
-          h("div", { class: "grid gap-3 md:grid-cols-3" }, sectorCards),
-        ),
-      ];
     }
 
-    function renderStep(focusTitle = false) {
-      const step = steps()[state.stepIndex];
-      $("step-title").textContent = step.title;
-      $("step-summary").textContent = step.summary;
-      $("step-refs").replaceChildren(
-        ...(step.pillar ? step.pillar.references.map((r) => h("span", { class: "rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700" }, `${r.instrument} — ${r.provision}`)) : []),
+    function startAssessment() {
+      const errors = {};
+      if (!state.meta.organizationName.trim()) errors.organizationName = "Enter your business name.";
+      if (!state.sectorId) errors.sector = "Choose the option closest to your business.";
+      state.startErrors = errors;
+      if (Object.keys(errors).length) {
+        render(false);
+        const first = errors.organizationName ? $("meta-organizationName") : document.querySelector('input[name="businessType"]');
+        if (first) first.focus();
+        return;
+      }
+      go("question", 0);
+    }
+
+    function loadSample(sample) {
+      state.meta = { ...freshMeta(), ...sample.meta };
+      state.sectorId = sample.businessType;
+      state.answers = Object.assign({}, sample.complianceInputs, sample.industrySpecifics, sample.operationalMetrics);
+      state.startErrors = {};
+      render(false);
+      toast("Example loaded. Press Start to walk through it.");
+    }
+
+    function rail(activePillarId) {
+      const secs = sections();
+      const item = (sec) => {
+        const done = answeredCount(sec.questions);
+        const complete = done === sec.questions.length;
+        const active = sec.pillar.id === activePillarId;
+        return h("li", {},
+          h("button", { type: "button", "aria-current": active ? "step" : null, onclick: () => jumpTo(sec.questions[0].id),
+            class: `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${active ? "bg-surface font-semibold shadow-sm ring-1 ring-line" : "text-muted hover:bg-surface/70 hover:text-ink"}` },
+            h("span", { class: `grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] ${complete ? "bg-brand text-on-brand" : active ? "border-2 border-brand text-brand" : "border border-line"}` },
+              complete ? icon(ICON.check, "h-3.5 w-3.5") : null),
+            h("span", { class: "min-w-0 flex-1 leading-snug" }, sec.pillar.title),
+            h("span", { class: "tabular text-xs text-muted" }, `${done}/${sec.questions.length}`),
+          ),
+        );
+      };
+      const reviewActive = activePillarId === "review";
+      return h("aside", { class: "hidden lg:block" },
+        h("nav", { "aria-label": "Assessment sections", class: "sticky top-24" },
+          h("p", { class: "mb-3 px-3 text-xs font-semibold uppercase tracking-[.14em] text-muted" }, state.meta.organizationName || "Sections"),
+          h("ol", { class: "space-y-1" }, secs.map(item),
+            h("li", { class: "mt-2 border-t border-line pt-2" },
+              h("button", { type: "button", onclick: () => go("review"), "aria-current": reviewActive ? "step" : null,
+                class: `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${reviewActive ? "bg-surface font-semibold shadow-sm ring-1 ring-line" : "text-muted hover:bg-surface/70 hover:text-ink"}` },
+                h("span", { class: "grid h-6 w-6 place-items-center rounded-full border border-line" }, icon(ICON.list, "h-3.5 w-3.5")), "Review & generate"),
+            ),
+          ),
+        ),
       );
-      $("step-body").replaceChildren(...(step.id === "profile" ? profileStep() : step.questions.filter(isVisible).map(questionCard)));
-      $("back-btn").disabled = state.stepIndex === 0;
-      $("next-btn").textContent = state.stepIndex === steps().length - 1 ? "Generate report" : "Next";
-      updateProgress();
-      if (focusTitle) $("step-title").focus();
+    }
+
+    function mobileSections(activePillarId) {
+      return h("div", { class: "no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 lg:hidden" },
+        sections().map((sec) => {
+          const active = sec.pillar.id === activePillarId;
+          const complete = answeredCount(sec.questions) === sec.questions.length;
+          return h("button", { type: "button", onclick: () => jumpTo(sec.questions[0].id), "aria-current": active ? "step" : null,
+            class: `inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${active ? "border-brand bg-brand text-on-brand" : complete ? "border-brand/40 bg-brand-soft text-brand" : "border-line bg-surface text-muted"}` },
+            complete && !active ? icon(ICON.check, "h-3 w-3") : null, sec.pillar.title);
+        }),
+      );
+    }
+
+    function viewQuestion() {
+      const vis = visibleQuestions();
+      state.qIndex = Math.min(Math.max(0, state.qIndex), vis.length - 1);
+      const q = vis[state.qIndex];
+      const pillar = pillarOf(q.pillar);
+      const value = answerOf(q.id);
+      const sev = SEVERITY[q.severity];
+      const kind = q.polarity === "scope" ? "Scope check" : q.polarity === "exposure" ? (q.weight ? "Risk exposure" : "Business profile") : `${sev.label} control`;
+      const kindCls = q.polarity === "control" ? sev.pill : "bg-surface-2 text-muted";
+
+      const choice = (val, label, sub, key) => {
+        const selected = value === val;
+        return h("button", { type: "button", "aria-pressed": String(selected), onclick: () => answer(q, val),
+          class: `group flex items-center gap-4 rounded-2xl border-2 p-4 text-left transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/30 sm:p-5 ${selected ? "border-brand bg-brand-soft" : "border-line bg-surface hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-md"}` },
+          h("span", { class: `grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors ${selected ? "bg-brand text-on-brand" : "bg-surface-2 text-ink group-hover:bg-brand-soft group-hover:text-brand"}` }, icon(val ? ICON.check : ICON.cross)),
+          h("span", { class: "min-w-0 flex-1" }, h("span", { class: "block font-display text-xl font-bold" }, label), h("span", { class: "block text-xs text-muted" }, sub)),
+          h("kbd", { class: "hidden rounded-md border border-line bg-surface-2 px-2 py-0.5 font-mono text-xs text-muted sm:inline-block" }, key),
+        );
+      };
+
+      let control;
+      if (q.input === "boolean") {
+        const yesSub = q.polarity === "control" ? "We have this in place" : "This applies to us";
+        const noSub = q.polarity === "control" ? "Not yet" : "Doesn't apply";
+        control = h("div", { role: "group", "aria-labelledby": "q-title", class: "mt-7 grid gap-3 sm:grid-cols-2" }, choice(true, "Yes", yesSub, "Y"), choice(false, "No", noSub, "N"));
+      } else {
+        const preview = h("p", { class: "tabular mt-2 h-5 text-sm text-muted", "aria-live": "polite" }, value !== undefined ? (q.input === "currency" ? `AUD ${fmt.format(value)}` : `${fmt.format(value)} people`) : "");
+        const input = h("input", {
+          id: "q-number", type: "number", inputmode: "numeric", min: "0", max: String(q.max), step: q.input === "currency" ? "1000" : "1",
+          value: value === undefined ? "" : String(value), "aria-labelledby": "q-title", "aria-describedby": "q-help",
+          class: "tabular w-full rounded-2xl border-2 border-line bg-surface px-4 py-3.5 font-display text-2xl font-bold text-ink transition-shadow focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 sm:max-w-sm",
+          oninput: (e) => {
+            const n = Number(e.target.value);
+            if (e.target.value === "") delete state.answers[q.id];
+            else if (Number.isFinite(n) && n >= 0) state.answers[q.id] = n;
+            const v = answerOf(q.id);
+            preview.textContent = v === undefined ? "" : q.input === "currency" ? `AUD ${fmt.format(v)}` : `${fmt.format(v)} people`;
+          },
+          onkeydown: (e) => { if (e.key === "Enter") { e.preventDefault(); advanceFrom(q.id); } },
+        });
+        control = h("div", { class: "mt-7" },
+          h("div", { class: "flex flex-col gap-3 sm:flex-row sm:items-center" },
+            h("div", { class: "relative w-full sm:max-w-sm" }, q.input === "currency" ? h("span", { class: "pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted" }, "AUD") : null, input),
+            h("button", { type: "button", class: btnPrimary, onclick: () => advanceFrom(q.id) }, "Continue", icon(ICON.arrowRight, "h-4 w-4")),
+          ),
+          preview,
+        );
+        if (q.input === "currency") input.classList.add("pl-16");
+        setTimeout(() => input.focus(), 50);
+      }
+
+      const refs = q.references.map((r) => `${r.instrument} — ${r.provision}`);
+      return h("div", { class: "grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-10" },
+        rail(q.pillar),
+        h("div", { class: "min-w-0" },
+          mobileSections(q.pillar),
+          h("section", { class: `${card} p-5 sm:p-8 lg:p-10`, "aria-labelledby": "q-title" },
+            h("div", { class: "flex flex-wrap items-center gap-x-3 gap-y-2 text-xs" },
+              h("span", { class: "font-semibold uppercase tracking-[.12em] text-brand" }, pillar.title),
+              h("span", { class: "tabular text-muted" }, `Question ${state.qIndex + 1} of ${vis.length}`),
+              h("span", { class: `ml-auto rounded-full px-2.5 py-1 font-semibold ${kindCls}` }, kind),
+            ),
+            h("h2", { id: "q-title", tabindex: "-1", "data-autofocus": true, class: "mt-5 font-display text-2xl font-bold leading-tight tracking-tight focus:outline-none sm:text-[2rem]" }, q.prompt),
+            h("p", { id: "q-help", class: "mt-3 max-w-[60ch] text-[15px] leading-relaxed text-muted" }, q.help),
+            control,
+            h("div", { class: "mt-8 flex items-center justify-between gap-3 border-t border-line pt-5" },
+              h("button", { type: "button", class: btnGhost, onclick: back }, icon(ICON.arrowLeft, "h-4 w-4"), "Back"),
+              h("div", { class: "flex items-center gap-4" },
+                h("span", { class: "hidden text-xs text-muted md:inline" }, "Keys: ", h("kbd", { class: "font-mono" }, "Y"), " / ", h("kbd", { class: "font-mono" }, "N"), " · ", h("kbd", { class: "font-mono" }, "←"), " back"),
+                h("button", { type: "button", class: "text-sm font-semibold text-brand underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded", onclick: () => advanceFrom(q.id) }, value === undefined ? "Skip for now" : "Next"),
+              ),
+            ),
+          ),
+          refs.length ? h("details", { class: "group mt-4 rounded-2xl border border-line bg-surface/60 px-5 py-4 text-sm" },
+            h("summary", { class: "flex cursor-pointer list-none items-center gap-2 font-medium text-ink" }, icon(ICON.info, "h-4 w-4 text-brand"), "Why we ask this", h("span", { class: "ml-auto text-xs text-muted transition-transform group-open:rotate-180" }, "▾")),
+            h("ul", { class: "mt-3 space-y-1 text-muted" }, refs.map((r) => h("li", {}, r))),
+            h("p", { class: "mt-3 text-xs leading-relaxed text-muted" }, pillar.penaltyScope),
+          ) : null,
+        ),
+      );
+    }
+
+    function viewReview() {
+      const secs = sections();
+      const vis = visibleQuestions();
+      const answered = answeredCount(vis);
+      const skipped = vis.length - answered;
+      const firstSkipped = vis.find((q) => answerOf(q.id) === undefined);
+      return h("div", { class: "grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-10" },
+        rail("review"),
+        h("section", { class: `${card} min-w-0 p-5 sm:p-8 lg:p-10`, "aria-labelledby": "review-title" },
+          h("p", { class: "text-xs font-semibold uppercase tracking-[.12em] text-brand" }, "Review"),
+          h("h2", { id: "review-title", tabindex: "-1", "data-autofocus": true, class: "mt-3 font-display text-3xl font-bold tracking-tight focus:outline-none" }, "Ready for your report"),
+          h("p", { class: "tabular mt-2 text-muted" }, `You answered ${answered} of ${vis.length} questions for ${state.meta.organizationName}.`),
+          skipped ? h("div", { class: "mt-5 flex flex-col gap-3 rounded-2xl bg-med-soft p-4 text-sm text-med sm:flex-row sm:items-center sm:justify-between" },
+            h("p", { class: "flex gap-2" }, icon(ICON.alert, "mt-0.5 h-4 w-4 shrink-0"), `${skipped} skipped question${skipped === 1 ? "" : "s"} will count as gaps until answered.`),
+            h("button", { type: "button", class: "shrink-0 rounded-lg bg-surface px-3 py-1.5 text-xs font-semibold text-ink ring-1 ring-line hover:bg-surface-2", onclick: () => jumpTo(firstSkipped.id) }, "Answer them now"),
+          ) : null,
+          h("ul", { class: "mt-6 divide-y divide-line rounded-2xl border border-line" },
+            secs.map((sec) => {
+              const done = answeredCount(sec.questions);
+              const pct = Math.round((done / sec.questions.length) * 100);
+              return h("li", { class: "flex items-center gap-4 px-4 py-3.5" },
+                h("div", { class: "min-w-0 flex-1" },
+                  h("p", { class: "text-sm font-medium" }, sec.pillar.title),
+                  h("div", { class: "mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2" }, h("div", { class: "h-full rounded-full bg-brand", style: `width:${pct}%` })),
+                ),
+                h("span", { class: "tabular w-10 text-right text-xs text-muted" }, `${done}/${sec.questions.length}`),
+                h("button", { type: "button", class: "rounded-lg px-2.5 py-1 text-xs font-semibold text-brand hover:bg-brand-soft", onclick: () => jumpTo(sec.questions[0].id), "aria-label": `Edit ${sec.pillar.title}` }, "Edit"),
+              );
+            }),
+          ),
+          h("div", { class: "mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between" },
+            h("button", { type: "button", class: btnGhost, onclick: back }, icon(ICON.arrowLeft, "h-4 w-4"), "Back"),
+            h("button", { type: "button", id: "generate-btn", class: `${btnPrimary} px-6 py-3.5 text-[15px]`, onclick: submitAssessment }, "Generate my report", icon(ICON.arrowRight, "h-4 w-4")),
+          ),
+        ),
+      );
     }
 
     function buildPayload() {
       const payload = { meta: { ...state.meta }, businessType: state.sectorId, complianceInputs: {}, industrySpecifics: {}, operationalMetrics: {} };
-      for (const q of questions()) {
-        if (isVisible(q) && answerOf(q.id) !== undefined) payload[q.group][q.id] = answerOf(q.id);
+      for (const q of visibleQuestions()) {
+        if (answerOf(q.id) !== undefined) payload[q.group][q.id] = answerOf(q.id);
       }
       return payload;
     }
 
     async function submitAssessment() {
-      const btn = $("next-btn");
+      const btn = $("generate-btn");
       btn.disabled = true;
-      btn.textContent = "Generating…";
+      btn.firstChild.textContent = "Generating…";
       try {
         const res = await fetch(`${API_BASE}/v1/assess`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildPayload()) });
         const body = await res.json();
         if (!res.ok) throw new Error([body.error, ...(body.details || [])].join(" "));
         state.result = body;
+        state.gapFilter = "all";
         showAlert("");
-        renderResults();
+        go("results");
       } catch (err) {
-        showAlert(`Assessment failed: ${err.message}`);
-      } finally {
+        showAlert(`We couldn't generate the report: ${err.message} Check your connection and try again.`);
         btn.disabled = false;
-        btn.textContent = "Generate report";
+        btn.firstChild.textContent = "Generate my report";
       }
     }
 
-    function renderResults() {
-      const { entity, results, exportData } = state.result;
-      const tier = TIER_STYLE[results.riskTier];
-      $("wizard").classList.add("hidden");
-      $("results").classList.remove("hidden");
-
-      $("score-ring").style.setProperty("--ring-color", tier.ring);
-      $("score-ring").style.setProperty("--score", String(results.riskScore));
-      $("score-value").textContent = String(results.riskScore);
-      $("result-sector").textContent = entity.sectorLabel;
-      $("results-title").textContent = entity.organizationName;
-      $("tier-badge").className = `inline-block rounded-full px-3 py-1 text-sm font-semibold ${tier.badge}`;
-      $("tier-badge").textContent = `${results.riskTier.replace("_", " ")} · ${tier.label}`;
-      $("stat-critical").textContent = String(results.criticalGapCount);
-      $("stat-gaps").textContent = String(results.gapDetails.length);
-      $("stat-unanswered").textContent = String(results.unansweredCount);
-      $("payload").value = exportData.copyPastePayload;
-      $("copy-status").textContent = "";
-
-      $("gap-list").replaceChildren(
-        ...(results.gapDetails.length
-          ? results.gapDetails.map((g) =>
-              h("li", { class: "rounded-xl border border-slate-200 p-4" },
-                h("div", { class: "flex flex-wrap items-center gap-2" },
-                  h("span", { class: `rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ${SEVERITY_STYLE[g.severity]}` }, g.severity),
-                  h("span", { class: "text-xs font-medium text-slate-600" }, g.pillarTitle),
-                  h("code", { class: "text-[11px] text-slate-500" }, g.fieldId),
-                ),
-                h("p", { class: "mt-2 text-sm font-medium text-slate-900" }, g.finding),
-                g.references.length ? h("p", { class: "mt-1 text-xs text-slate-600" }, "Ref: " + g.references.join("; ")) : null,
-              ))
-          : [h("li", { class: "text-sm text-emerald-800" }, "No control gaps identified. Keep evidence of each control ready for AUSTRAC.")]),
-      );
-
-      $("pillar-list").replaceChildren(
-        ...results.pillarSummary.filter((p) => p.gapCount + p.riskFactorCount > 0 || p.score > 0).map((p) =>
-          h("li", {},
-            h("div", { class: "flex items-center justify-between text-sm" }, h("span", { class: "font-medium" }, p.title), h("span", { class: "text-slate-600" }, `${p.score}/100 · ${p.gapCount} gap(s)`)),
-            h("div", { class: "mt-1 h-2 overflow-hidden rounded-full bg-slate-200" },
-              h("div", { class: `h-full rounded-full transition-all duration-700 ${p.score >= 70 ? "bg-red-700" : p.score >= 45 ? "bg-orange-600" : p.score >= 20 ? "bg-amber-500" : "bg-emerald-600"}`, style: `width:${p.score}%` }),
-            ),
-            h("details", { class: "mt-1 text-xs text-slate-600" }, h("summary", { class: "cursor-pointer" }, "Penalty scope"), h("p", { class: "mt-1" }, p.penaltyScope)),
-          ),
+    function gauge(score, token) {
+      const arc = "M 20 110 A 90 90 0 0 1 200 110";
+      const fg = s("path", { d: arc, fill: "none", stroke: `rgb(var(--${token}))`, "stroke-width": "16", "stroke-linecap": "round", pathLength: "100", "stroke-dasharray": "0 100", class: "gauge-arc" });
+      requestAnimationFrame(() => requestAnimationFrame(() => fg.setAttribute("stroke-dasharray", `${Math.max(score, 0.5)} 100`)));
+      return h("div", { class: "relative mx-auto w-full max-w-[260px]" },
+        s("svg", { viewBox: "0 0 220 124", class: "w-full", role: "img", "aria-label": `Risk score ${score} out of 100` },
+          s("path", { d: arc, fill: "none", stroke: "rgb(var(--surface-2))", "stroke-width": "16", "stroke-linecap": "round" }),
+          fg,
+          s("text", { x: "20", y: "122", "text-anchor": "middle", "font-size": "10", fill: "rgb(var(--muted))" }, "0"),
+          s("text", { x: "200", y: "122", "text-anchor": "middle", "font-size": "10", fill: "rgb(var(--muted))" }, "100"),
+        ),
+        h("div", { class: "absolute inset-x-0 bottom-1 text-center" },
+          h("p", { class: "tabular font-display text-5xl font-bold leading-none" }, String(score)),
+          h("p", { class: "mt-1 text-xs text-muted" }, "risk score"),
         ),
       );
+    }
 
-      $("risk-list").replaceChildren(
-        ...(results.riskFactors.length ? results.riskFactors.map((r) => h("li", {}, r)) : [h("li", {}, "No inherent risk factors flagged.")]),
+    function viewResults() {
+      const { entity, results, exportData, meta } = state.result;
+      const tier = TIERS[results.riskTier];
+      const rows = exportData.copyPastePayload.split("\n").length - 1;
+      const assessedOn = new Date(meta.assessedAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
+      const stat = (label, value, tone) => h("div", { class: "rounded-2xl bg-surface-2/70 px-4 py-3" },
+        h("dt", { class: "text-xs text-muted" }, label), h("dd", { class: `tabular mt-0.5 font-display text-2xl font-bold ${tone || ""}` }, String(value)));
+
+      const priorities = results.gapDetails.filter((g) => g.severity === "critical" || g.severity === "high").slice(0, 5);
+      const counts = results.gapDetails.reduce((acc, g) => ((acc[g.severity] = (acc[g.severity] || 0) + 1), acc), {});
+      const filtered = state.gapFilter === "all" ? results.gapDetails : results.gapDetails.filter((g) => g.severity === state.gapFilter);
+
+      const filterChip = (key, label, n) => h("button", { type: "button", "aria-pressed": String(state.gapFilter === key), onclick: () => { state.gapFilter = key; render(false); },
+        class: `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${state.gapFilter === key ? "border-ink bg-ink text-bg" : "border-line bg-surface text-muted hover:text-ink"}` },
+        label, h("span", { class: "tabular opacity-70" }, String(n)));
+
+      return h("div", { class: "space-y-6" },
+        h("section", { class: `${card} grid items-center gap-6 p-5 sm:p-8 md:grid-cols-[260px_minmax(0,1fr)] md:gap-10` , "aria-labelledby": "results-title" },
+          gauge(results.riskScore, tier.token),
+          h("div", { class: "min-w-0" },
+            h("p", { class: "text-xs font-semibold uppercase tracking-[.12em] text-muted" }, [entity.sectorLabel, entity.location].filter(Boolean).join(" · ")),
+            h("h1", { id: "results-title", tabindex: "-1", "data-autofocus": true, class: "mt-2 font-display text-3xl font-bold tracking-tight focus:outline-none sm:text-4xl" }, entity.organizationName),
+            h("div", { class: "mt-3 flex flex-wrap items-center gap-x-3 gap-y-2" },
+              h("span", { class: `inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${tier.pill}` }, h("span", { class: "h-2 w-2 rounded-full bg-current" }), tier.label),
+              h("span", { class: "text-xs text-muted" }, `Assessed ${assessedOn} · Ruleset ${meta.rulesetVersion}`),
+            ),
+            h("dl", { class: "mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4" },
+              stat("Critical gaps", results.criticalGapCount, results.criticalGapCount ? "text-crit" : ""),
+              stat("All gaps", results.gapDetails.length),
+              stat("Risk factors", results.riskFactors.length),
+              stat("Skipped", results.unansweredCount, results.unansweredCount ? "text-med" : ""),
+            ),
+          ),
+        ),
+
+        h("section", { class: "rounded-3xl border-2 border-brand/40 bg-surface p-5 sm:p-8", "aria-labelledby": "datapack-title" },
+          h("div", { class: "flex flex-col gap-5 md:flex-row md:items-start md:justify-between" },
+            h("div", { class: "min-w-0" },
+              h("div", { class: "flex flex-wrap items-center gap-2" },
+                h("h2", { id: "datapack-title", class: "font-display text-2xl font-bold" }, "AUSTRAC data pack"),
+                h("span", { class: "tabular rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand" }, `${rows} rows · 3 columns`),
+              ),
+              h("p", { class: "mt-1.5 max-w-[60ch] text-sm text-muted" }, "Every answer with its status and legal reference, as FIELD_ID ⇥ VALUE ⇥ AUDIT_TRAIL rows. Paste it into a spreadsheet, your compliance register or a tabular form field."),
+            ),
+            h("div", { class: "flex shrink-0 flex-col gap-2 sm:flex-row" },
+              h("button", { type: "button", id: "copy-btn", class: `${btnPrimary} px-6 py-3.5 text-[15px]`, onclick: copyPayload }, icon(ICON.copy, "h-4 w-4"), h("span", { id: "copy-label" }, "Copy Data Pack for AUSTRAC")),
+              window.AML_DEMO_MODE ? null : h("button", { type: "button", class: btnGhost, onclick: downloadPayload }, icon(ICON.download, "h-4 w-4"), ".tsv"),
+            ),
+          ),
+          h("label", { for: "payload", class: "sr-only" }, "Tab-delimited AUSTRAC data pack"),
+          h("textarea", { id: "payload", readonly: true, rows: "9", wrap: "off", class: "mt-5 w-full resize-y rounded-2xl border border-line bg-surface-2/60 p-4 font-mono text-xs leading-relaxed text-ink focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15" }, exportData.copyPastePayload),
+        ),
+
+        priorities.length ? h("section", { class: `${card} p-5 sm:p-8`, "aria-labelledby": "priorities-title" },
+          h("h2", { id: "priorities-title", class: "font-display text-2xl font-bold" }, "Fix these first"),
+          h("p", { class: "mt-1 text-sm text-muted" }, "Your highest-severity gaps, in priority order."),
+          h("ol", { class: "mt-5 space-y-3" }, priorities.map((g, i) =>
+            h("li", { class: "flex gap-4 rounded-2xl bg-surface-2/60 p-4" },
+              h("span", { class: "tabular grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink font-display text-sm font-bold text-bg" }, String(i + 1)),
+              h("div", { class: "min-w-0" },
+                h("p", { class: "text-[15px] font-medium leading-snug" }, cleanFinding(g.finding)),
+                h("p", { class: "mt-1 text-xs text-muted" }, [SEVERITY[g.severity].label, g.answered ? null : "Skipped", g.pillarTitle, g.references[0]].filter(Boolean).join(" · ")),
+              ),
+            ))),
+        ) : null,
+
+        h("div", { class: "grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]" },
+          h("section", { class: `${card} min-w-0 p-5 sm:p-8`, "aria-labelledby": "gaps-title" },
+            h("div", { class: "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" },
+              h("h2", { id: "gaps-title", class: "font-display text-2xl font-bold" }, "Gap register"),
+              h("div", { class: "flex flex-wrap gap-1.5", role: "group", "aria-label": "Filter by severity" },
+                filterChip("all", "All", results.gapDetails.length),
+                ...["critical", "high", "medium", "low"].filter((k) => counts[k]).map((k) => filterChip(k, SEVERITY[k].label, counts[k])),
+              ),
+            ),
+            h("ul", { class: "mt-5 divide-y divide-line" },
+              filtered.length ? filtered.map((g) =>
+                h("li", { class: "py-4 first:pt-0 last:pb-0" },
+                  h("div", { class: "flex flex-wrap items-center gap-2" },
+                    h("span", { class: `inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${SEVERITY[g.severity].pill}` }, h("span", { class: `h-1.5 w-1.5 rounded-full ${SEVERITY[g.severity].dot}` }), SEVERITY[g.severity].label),
+                    h("span", { class: "text-xs text-muted" }, g.pillarTitle),
+                    g.answered ? null : h("span", { class: "rounded-full bg-med-soft px-2 py-0.5 text-[11px] font-semibold text-med" }, "Skipped"),
+                  ),
+                  h("p", { class: "mt-2 text-sm font-medium leading-snug" }, cleanFinding(g.finding)),
+                  h("p", { class: "mt-1 text-xs text-muted" }, g.references.join("; ")),
+                  h("code", { class: "mt-1 block font-mono text-[11px] text-muted/80" }, g.fieldId),
+                )) : [h("li", { class: "py-2 text-sm text-ok" }, "No gaps identified. Keep evidence of each control ready for AUSTRAC.")],
+            ),
+          ),
+          h("div", { class: "space-y-6" },
+            h("section", { class: `${card} p-5 sm:p-7`, "aria-labelledby": "pillars-title" },
+              h("h2", { id: "pillars-title", class: "font-display text-xl font-bold" }, "By obligation"),
+              h("ul", { class: "mt-4 space-y-4" }, results.pillarSummary.map((p) => {
+                const tone = p.score >= 70 ? "crit" : p.score >= 45 ? "high" : p.score >= 20 ? "med" : "ok";
+                return h("li", {},
+                  h("div", { class: "flex items-baseline justify-between gap-3 text-sm" }, h("span", { class: "font-medium" }, p.title), h("span", { class: "tabular text-xs text-muted" }, `${p.score} · ${p.gapCount} gap${p.gapCount === 1 ? "" : "s"}`)),
+                  h("div", { class: "mt-1.5 h-2 overflow-hidden rounded-full bg-surface-2" }, h("div", { class: "h-full rounded-full transition-all duration-700", style: `width:${Math.max(p.score, 2)}%;background:rgb(var(--${tone}))` })),
+                  h("details", { class: "mt-1 text-xs text-muted" }, h("summary", { class: "cursor-pointer hover:text-ink" }, "Penalty scope"), h("p", { class: "mt-1 leading-relaxed" }, p.penaltyScope)),
+                );
+              })),
+            ),
+            h("section", { class: `${card} p-5 sm:p-7`, "aria-labelledby": "risks-title" },
+              h("h2", { id: "risks-title", class: "font-display text-xl font-bold" }, "Inherent risk factors"),
+              h("ul", { class: "mt-4 space-y-2.5 text-sm" }, (results.riskFactors.length ? results.riskFactors : ["No inherent risk factors flagged."]).map((r) =>
+                h("li", { class: "flex gap-2.5" }, h("span", { class: "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-high" }), h("span", { class: "text-muted" }, cleanFinding(r))))),
+            ),
+          ),
+        ),
+
+        h("div", { class: "flex flex-col gap-3 sm:flex-row" },
+          h("button", { type: "button", class: btnGhost, onclick: () => go("review") }, icon(ICON.arrowLeft, "h-4 w-4"), "Edit answers"),
+          h("button", { type: "button", class: btnGhost, onclick: resetAll }, "Start a new assessment"),
+        ),
       );
-
-      $("results-title").focus();
-      window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     async function copyPayload() {
-      const text = $("payload").value;
-      const status = $("copy-status");
+      const area = $("payload");
+      const text = area.value;
+      const rows = text.split("\n").length - 1;
       try {
-        if (!navigator.clipboard || !window.isSecureContext) throw new Error("Clipboard API unavailable");
+        if (!navigator.clipboard) throw new Error("Clipboard API unavailable");
         await navigator.clipboard.writeText(text);
       } catch {
-        const area = $("payload");
         area.focus();
         area.select();
-        if (!document.execCommand("copy")) {
-          status.textContent = "Copy blocked by the browser — the text is selected, press Ctrl/Cmd + C.";
-          return;
-        }
+        let copied = false;
+        try { copied = document.execCommand("copy"); } catch { copied = false; }
+        if (!copied) { toast("Text selected. Press Ctrl+C or Cmd+C to copy."); return; }
       }
-      const rows = text.split("\n").length - 1;
-      status.textContent = `Copied ${rows} rows to your clipboard.`;
-      $("copy-label").textContent = "Copied ✓";
-      setTimeout(() => { $("copy-label").textContent = "Copy Data Pack for AUSTRAC"; }, 2500);
+      toast(`Copied ${rows} rows to your clipboard`);
+      $("copy-label").textContent = "Copied";
+      setTimeout(() => { const label = $("copy-label"); if (label) label.textContent = "Copy Data Pack for AUSTRAC"; }, 2500);
     }
 
     function downloadPayload() {
@@ -417,29 +702,21 @@
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
-    $("wizard-form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      if (state.stepIndex === 0) {
-        if (!state.meta.organizationName.trim() || !state.sectorId) {
-          showAlert("Enter your organisation name and choose an industry vertical to continue.");
-          return;
-        }
-      }
-      showAlert("");
-      if (state.stepIndex === steps().length - 1) { submitAssessment(); return; }
-      state.stepIndex += 1;
-      renderStep(true);
+    function resetAll() {
+      Object.assign(state, { sectorId: "", meta: freshMeta(), answers: {}, qIndex: 0, result: null, startErrors: {} });
+      go("start");
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (state.view !== "question" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName);
+      const q = visibleQuestions()[state.qIndex];
+      if (!q) return;
+      if (!typing && q.input === "boolean" && (e.key === "y" || e.key === "Y")) { e.preventDefault(); answer(q, true); }
+      else if (!typing && q.input === "boolean" && (e.key === "n" || e.key === "N")) { e.preventDefault(); answer(q, false); }
+      else if (!typing && e.key === "ArrowLeft") { e.preventDefault(); back(); }
     });
-    $("back-btn").addEventListener("click", () => { state.stepIndex = Math.max(0, state.stepIndex - 1); renderStep(true); });
-    $("copy-btn").addEventListener("click", copyPayload);
-    $("download-btn").addEventListener("click", downloadPayload);
-    $("edit-btn").addEventListener("click", () => { $("results").classList.add("hidden"); $("wizard").classList.remove("hidden"); renderStep(true); });
-    $("restart-btn").addEventListener("click", () => {
-      Object.assign(state, { sectorId: "", answers: {}, stepIndex: 0, result: null, meta: { organizationName: "", location: "", assessmentTarget: "AUSTRAC Tranche 2 Readiness Review" } });
-      $("results").classList.add("hidden");
-      $("wizard").classList.remove("hidden");
-      renderStep(true);
-    });
+    $("home-btn").addEventListener("click", () => { if (state.questionnaire && state.view !== "start") go("start"); });
 
     (async () => {
       try {
@@ -448,13 +725,12 @@
         state.questionnaire = await res.json();
         $("disclaimer").textContent = state.questionnaire.disclaimer;
         $("ruleset-badge").textContent = `Ruleset ${state.questionnaire.rulesetVersion}`;
-        $("ruleset-badge").classList.remove("hidden");
-        $("loading").classList.add("hidden");
-        $("wizard").classList.remove("hidden");
-        renderStep();
+        $("ruleset-badge").hidden = false;
+        $("loading").hidden = true;
+        render(false);
       } catch (err) {
-        $("loading").classList.add("hidden");
-        showAlert(`Could not reach the assessment API at ${API_BASE || location.origin}. Set the aml-api-base meta tag to your Worker URL. (${err.message})`);
+        $("loading").hidden = true;
+        showAlert(`We couldn't reach the assessment service at ${API_BASE || location.origin} (${err.message}). Set the aml-api-base meta tag to your Worker URL.`);
       }
     })();
   })();

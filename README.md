@@ -19,6 +19,7 @@ npm test               # engine + HTTP tests
 npm run typecheck
 npm run dev            # Worker on http://localhost:8787
 npx serve public       # or any static server; localhost pages call :8787 automatically
+npm run build:demo     # dist/demo.html — single file, engine runs in-browser (no Worker needed)
 ```
 
 ## Deploy
