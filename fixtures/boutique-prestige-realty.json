@@ -1,0 +1,26 @@
+{
+  "meta": {
+    "organizationName": "Boutique Prestige Realty Melbourne",
+    "location": "South Yarra, VIC",
+    "assessmentTarget": "AUSTRAC Tranche 2 Readiness Review"
+  },
+  "businessType": "real_estate",
+  "operationalMetrics": {
+    "annualTransactionVolume": 42000000,
+    "totalActiveStaff": 8,
+    "hasAppointedComplianceOfficer": false
+  },
+  "complianceInputs": {
+    "cashOver10k": true,
+    "pepScreening": false,
+    "staffTraining": false,
+    "designatedServices": true,
+    "independentAuditCycle": false,
+    "internationalBuyerOnboarding": true
+  },
+  "industrySpecifics": {
+    "handlesConveyancingTrustAccounts": false,
+    "managesCommercialLeasing": true,
+    "preparesHighValueAssetSales": true
+  }
+}

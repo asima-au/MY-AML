@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en-AU" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AML TurboTax for Tranche 2</title>
+  <meta name="description" content="AUSTRAC Tranche 2 AML/CTF readiness assessment, gap analysis and data pack." />
+  <!-- Worker API base URL, e.g. https://aml-tranche2-assessor.<account>.workers.dev. Empty = same origin (localhost uses :8787). -->
+  <meta name="aml-api-base" content="" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <style>
+    .score-ring { background: conic-gradient(var(--ring-color) calc(var(--score) * 1%), rgb(226 232 240) 0); }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+  </style>
+</head>
+<body class="min-h-full bg-slate-50 text-slate-900 antialiased">
+  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:shadow">Skip to content</a>
+
+  <header class="border-b border-slate-200 bg-white">
+    <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700">AUSTRAC Tranche 2 readiness</p>
+        <h1 class="text-lg font-bold sm:text-xl">AML TurboTax for Tranche 2</h1>
+      </div>
+      <p id="ruleset-badge" class="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 sm:block"></p>
+    </div>
+  </header>
+
+  <main id="main" class="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+    <div id="alert" role="alert" class="mb-6 hidden rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800"></div>
+
+    <!-- Wizard -->
+    <section id="wizard" aria-labelledby="step-title" class="hidden">
+      <nav aria-label="Assessment progress" class="mb-8">
+        <div class="mb-2 flex items-center justify-between text-sm">
+          <span id="progress-label" class="font-medium text-slate-700"></span>
+          <span id="answered-label" class="text-slate-600"></span>
+        </div>
+        <div class="h-2 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" id="progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Assessment progress">
+          <div id="progress-bar" class="h-full rounded-full bg-emerald-600 transition-all duration-500 ease-out" style="width:0%"></div>
+        </div>
+        <ol id="step-list" class="mt-4 hidden gap-2 text-xs md:flex"></ol>
+      </nav>
+
+      <form id="wizard-form" novalidate class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
+        <h2 id="step-title" tabindex="-1" class="text-xl font-bold focus:outline-none sm:text-2xl"></h2>
+        <p id="step-summary" class="mt-1 text-sm text-slate-600"></p>
+        <div id="step-refs" class="mt-3 flex flex-wrap gap-2"></div>
+        <div id="step-body" class="mt-6 space-y-4"></div>
+
+        <div class="mt-8 flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-between">
+          <button type="button" id="back-btn" class="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40">Back</button>
+          <button type="submit" id="next-btn" class="rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60">Next</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Results -->
+    <section id="results" aria-labelledby="results-title" class="hidden space-y-6">
+      <div class="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 md:flex-row md:items-center lg:p-8">
+        <div id="score-ring" class="score-ring mx-auto grid h-36 w-36 shrink-0 place-items-center rounded-full md:mx-0" style="--score:0;--ring-color:#047857">
+          <div class="grid h-28 w-28 place-items-center rounded-full bg-white text-center">
+            <div>
+              <p id="score-value" class="text-3xl font-bold">0</p>
+              <p class="text-xs text-slate-600">risk / 100</p>
+            </div>
+          </div>
+        </div>
+        <div class="min-w-0 flex-1">
+          <p id="result-sector" class="text-xs font-semibold uppercase tracking-wider text-slate-600"></p>
+          <h2 id="results-title" tabindex="-1" class="mt-1 text-xl font-bold focus:outline-none sm:text-2xl"></h2>
+          <p class="mt-2"><span id="tier-badge" class="inline-block rounded-full px-3 py-1 text-sm font-semibold"></span></p>
+          <dl class="mt-4 grid grid-cols-3 gap-3 text-center sm:max-w-md">
+            <div class="rounded-lg bg-slate-50 p-3"><dt class="text-xs text-slate-600">Critical gaps</dt><dd id="stat-critical" class="text-xl font-bold"></dd></div>
+            <div class="rounded-lg bg-slate-50 p-3"><dt class="text-xs text-slate-600">Total gaps</dt><dd id="stat-gaps" class="text-xl font-bold"></dd></div>
+            <div class="rounded-lg bg-slate-50 p-3"><dt class="text-xs text-slate-600">Unanswered</dt><dd id="stat-unanswered" class="text-xl font-bold"></dd></div>
+          </dl>
+        </div>
+      </div>
+
+      <section aria-labelledby="datapack-title" class="rounded-2xl border-2 border-emerald-700 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 id="datapack-title" class="text-lg font-bold">AUSTRAC data pack</h3>
+            <p class="mt-1 text-sm text-slate-600">Tab-delimited <code class="rounded bg-slate-100 px-1">FIELD_ID · VALUE · AUDIT_TRAIL</code> rows. Paste into a spreadsheet, your compliance register, or a tabular form field.</p>
+          </div>
+          <div class="flex shrink-0 flex-col gap-2 sm:flex-row">
+            <button type="button" id="copy-btn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow transition-all hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 active:scale-95">
+              <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span id="copy-label">Copy Data Pack for AUSTRAC</span>
+            </button>
+            <button type="button" id="download-btn" class="rounded-lg border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Download .tsv</button>
+          </div>
+        </div>
+        <label for="payload" class="sr-only">Tab-delimited AUSTRAC data pack</label>
+        <textarea id="payload" readonly rows="10" wrap="off" class="mt-4 w-full resize-y rounded-lg border border-slate-300 bg-slate-50 p-3 font-mono text-xs leading-relaxed text-slate-800 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600"></textarea>
+        <p id="copy-status" role="status" aria-live="polite" class="mt-2 min-h-[1.25rem] text-sm font-medium text-emerald-800"></p>
+      </section>
+
+      <section aria-labelledby="gaps-title" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
+        <h3 id="gaps-title" class="text-lg font-bold">Gap analysis</h3>
+        <ul id="gap-list" class="mt-4 space-y-3"></ul>
+      </section>
+
+      <div class="grid gap-6 lg:grid-cols-2">
+        <section aria-labelledby="pillars-title" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          <h3 id="pillars-title" class="text-lg font-bold">Pillar breakdown</h3>
+          <ul id="pillar-list" class="mt-4 space-y-4"></ul>
+        </section>
+        <section aria-labelledby="risks-title" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          <h3 id="risks-title" class="text-lg font-bold">Inherent risk factors</h3>
+          <ul id="risk-list" class="mt-4 list-disc space-y-2 pl-5 text-sm text-slate-700"></ul>
+        </section>
+      </div>
+
+      <div class="flex flex-col gap-3 sm:flex-row">
+        <button type="button" id="edit-btn" class="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Edit answers</button>
+        <button type="button" id="restart-btn" class="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Start new assessment</button>
+      </div>
+    </section>
+
+    <p id="loading" class="py-16 text-center text-sm text-slate-600">Loading questionnaire…</p>
+  </main>
+
+  <footer class="border-t border-slate-200 bg-white">
+    <p id="disclaimer" class="mx-auto max-w-5xl px-4 py-6 text-xs leading-relaxed text-slate-600 sm:px-6 lg:px-8"></p>
+  </footer>
+
+  <script>
+  "use strict";
+  (() => {
+    const API_BASE = (() => {
+      const configured = document.querySelector('meta[name="aml-api-base"]').content.trim().replace(/\/$/, "");
+      if (configured) return configured;
+      return ["localhost", "127.0.0.1"].includes(location.hostname) && location.port !== "8787" ? "http://localhost:8787" : "";
+    })();
+
+    const SEVERITY_STYLE = {
+      critical: "bg-red-100 text-red-800 ring-red-300",
+      high: "bg-orange-100 text-orange-900 ring-orange-300",
+      medium: "bg-amber-100 text-amber-900 ring-amber-300",
+      low: "bg-slate-100 text-slate-800 ring-slate-300",
+    };
+    const TIER_STYLE = {
+      CRITICAL: { badge: "bg-red-700 text-white", ring: "#b91c1c", label: "Not ready" },
+      HIGH: { badge: "bg-orange-700 text-white", ring: "#c2410c", label: "Significant gaps" },
+      MODERATE: { badge: "bg-amber-100 text-amber-900", ring: "#b45309", label: "Action required" },
+      LOW: { badge: "bg-emerald-700 text-white", ring: "#047857", label: "Maintain and evidence" },
+      SCOPE_UNCONFIRMED: { badge: "bg-slate-700 text-white", ring: "#334155", label: "Confirm designated services" },
+    };
+
+    const state = { questionnaire: null, sectorId: "", meta: { organizationName: "", location: "", assessmentTarget: "AUSTRAC Tranche 2 Readiness Review" }, answers: {}, stepIndex: 0, result: null };
+    const $ = (id) => document.getElementById(id);
+
+    /** Minimal DOM builder — text is always set via textContent (never innerHTML). */
+    function h(tag, attrs = {}, ...children) {
+      const el = document.createElement(tag);
+      for (const [key, value] of Object.entries(attrs)) {
+        if (value === undefined || value === null || value === false) continue;
+        if (key === "class") el.className = value;
+        else if (key.startsWith("on")) el.addEventListener(key.slice(2), value);
+        else el.setAttribute(key, value === true ? "" : value);
+      }
+      for (const child of children.flat()) {
+        if (child === null || child === undefined || child === false) continue;
+        el.append(child instanceof Node ? child : document.createTextNode(String(child)));
+      }
+      return el;
+    }
+
+    function showAlert(message) {
+      const alert = $("alert");
+      alert.textContent = message;
+      alert.classList.toggle("hidden", !message);
+    }
+
+    const sector = () => state.questionnaire.sectors.find((s) => s.id === state.sectorId);
+    const questions = () => (sector() ? sector().questions : []);
+    const answerOf = (id) => state.answers[id];
+
+    function isVisible(q) {
+      return !q.showIf || q.showIf.anyOf.some((c) => answerOf(c.questionId) === c.equals);
+    }
+
+    function steps() {
+      const list = [{ id: "profile", title: "Organisation profile", summary: "Tell us who is being assessed and which industry vertical applies." }];
+      if (!sector()) return list;
+      for (const pillar of state.questionnaire.pillars) {
+        const qs = questions().filter((q) => q.pillar === pillar.id);
+        if (qs.length) list.push({ id: pillar.id, title: pillar.title, summary: pillar.summary, pillar, questions: qs });
+      }
+      return list;
+    }
+
+    function updateProgress() {
+      const all = steps();
+      const total = all.length;
+      const pct = Math.round((state.stepIndex / total) * 100);
+      $("progress-bar").style.width = pct + "%";
+      $("progress").setAttribute("aria-valuenow", String(pct));
+      $("progress-label").textContent = `Step ${state.stepIndex + 1} of ${total}: ${all[state.stepIndex].title}`;
+      const visible = questions().filter(isVisible);
+      const answered = visible.filter((q) => answerOf(q.id) !== undefined).length;
+      $("answered-label").textContent = sector() ? `${answered} of ${visible.length} answered` : "";
+
+      const list = $("step-list");
+      list.replaceChildren(
+        ...all.map((step, i) =>
+          h("li", { class: `flex-1 rounded-md px-2 py-1.5 text-center transition-colors ${i === state.stepIndex ? "bg-emerald-700 font-semibold text-white" : i < state.stepIndex ? "bg-emerald-50 text-emerald-800" : "bg-slate-100 text-slate-600"}`, "aria-current": i === state.stepIndex ? "step" : null }, step.title),
+        ),
+      );
+    }
+
+    function toggleGroup(q) {
+      const labelId = `q-${q.id}-label`;
+      const current = answerOf(q.id);
+      const option = (value, text) =>
+        h("button", {
+          type: "button",
+          "aria-pressed": String(current === value),
+          class: `min-w-[5rem] rounded-lg px-4 py-2 text-sm font-semibold ring-1 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
+            current === value ? (value ? "bg-emerald-700 text-white ring-emerald-700" : "bg-slate-800 text-white ring-slate-800") : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50"
+          }`,
+          onclick: () => { state.answers[q.id] = value; renderStep(); },
+        }, text);
+      return h("div", { role: "group", "aria-labelledby": labelId, class: "flex shrink-0 gap-2" }, option(true, "Yes"), option(false, "No"));
+    }
+
+    function numberInput(q) {
+      const current = answerOf(q.id);
+      return h("input", {
+        id: `q-${q.id}`, type: "number", min: "0", max: String(q.max), step: q.input === "currency" ? "1000" : "1", inputmode: "numeric",
+        value: current === undefined ? "" : String(current),
+        "aria-describedby": `q-${q.id}-help`,
+        class: "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition-shadow focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600 sm:w-56",
+        oninput: (e) => {
+          const raw = e.target.value;
+          if (raw === "") delete state.answers[q.id];
+          else if (Number.isFinite(Number(raw)) && Number(raw) >= 0) state.answers[q.id] = Number(raw);
+          updateProgress();
+        },
+      });
+    }
+
+    function questionCard(q) {
+      const severity = SEVERITY_STYLE[q.severity];
+      const control = q.input === "boolean" ? toggleGroup(q) : numberInput(q);
+      const promptEl = q.input === "boolean"
+        ? h("p", { id: `q-${q.id}-label`, class: "font-medium text-slate-900" }, q.prompt)
+        : h("label", { for: `q-${q.id}`, id: `q-${q.id}-label`, class: "font-medium text-slate-900" }, q.prompt);
+      return h("div", { class: "rounded-xl border border-slate-200 p-4 transition-colors hover:border-slate-300 sm:p-5" },
+        h("div", { class: "flex flex-col gap-4 md:flex-row md:items-start md:justify-between" },
+          h("div", { class: "min-w-0" },
+            q.weight > 0 ? h("span", { class: `mb-2 inline-block rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ${severity}` }, q.severity) : null,
+            promptEl,
+            h("p", { id: `q-${q.id}-help`, class: "mt-1 text-sm text-slate-600" }, q.help),
+            q.references.length ? h("p", { class: "mt-2 text-xs text-slate-500" }, "Ref: " + q.references.map((r) => `${r.instrument} ${r.provision}`).join("; ")) : null,
+          ),
+          control,
+        ),
+      );
+    }
+
+    function profileStep() {
+      const field = (key, label, required, placeholder) =>
+        h("div", {},
+          h("label", { for: `meta-${key}`, class: "block text-sm font-medium text-slate-900" }, label, required ? h("span", { class: "text-red-700" }, " *") : null),
+          h("input", {
+            id: `meta-${key}`, type: "text", maxlength: "160", required, placeholder, value: state.meta[key],
+            class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition-shadow focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600",
+            oninput: (e) => { state.meta[key] = e.target.value; },
+          }),
+        );
+      const sectorCards = state.questionnaire.sectors.map((s) =>
+        h("label", { class: `flex cursor-pointer flex-col gap-1 rounded-xl border p-4 transition-all focus-within:ring-2 focus-within:ring-emerald-600 ${state.sectorId === s.id ? "border-emerald-700 bg-emerald-50" : "border-slate-200 hover:border-slate-300"}` },
+          h("span", { class: "flex items-center gap-2" },
+            h("input", { type: "radio", name: "businessType", value: s.id, checked: state.sectorId === s.id, class: "h-4 w-4 accent-emerald-700", onchange: () => { if (state.sectorId !== s.id) { state.sectorId = s.id; state.answers = {}; } renderStep(); } }),
+            h("span", { class: "font-semibold" }, s.label),
+          ),
+          h("span", { class: "text-sm text-slate-600" }, s.summary),
+        ),
+      );
+      return [
+        h("div", { class: "grid gap-4 md:grid-cols-2" },
+          field("organizationName", "Organisation name", true, "e.g. Boutique Prestige Realty"),
+          field("location", "Location", false, "e.g. South Yarra, VIC"),
+        ),
+        h("fieldset", { class: "mt-2" },
+          h("legend", { class: "mb-3 text-sm font-medium text-slate-900" }, "Industry vertical ", h("span", { class: "text-red-700" }, "*")),
+          h("div", { class: "grid gap-3 md:grid-cols-3" }, sectorCards),
+        ),
+      ];
+    }
+
+    function renderStep(focusTitle = false) {
+      const step = steps()[state.stepIndex];
+      $("step-title").textContent = step.title;
+      $("step-summary").textContent = step.summary;
+      $("step-refs").replaceChildren(
+        ...(step.pillar ? step.pillar.references.map((r) => h("span", { class: "rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700" }, `${r.instrument} — ${r.provision}`)) : []),
+      );
+      $("step-body").replaceChildren(...(step.id === "profile" ? profileStep() : step.questions.filter(isVisible).map(questionCard)));
+      $("back-btn").disabled = state.stepIndex === 0;
+      $("next-btn").textContent = state.stepIndex === steps().length - 1 ? "Generate report" : "Next";
+      updateProgress();
+      if (focusTitle) $("step-title").focus();
+    }
+
+    function buildPayload() {
+      const payload = { meta: { ...state.meta }, businessType: state.sectorId, complianceInputs: {}, industrySpecifics: {}, operationalMetrics: {} };
+      for (const q of questions()) {
+        if (isVisible(q) && answerOf(q.id) !== undefined) payload[q.group][q.id] = answerOf(q.id);
+      }
+      return payload;
+    }
+
+    async function submitAssessment() {
+      const btn = $("next-btn");
+      btn.disabled = true;
+      btn.textContent = "Generating…";
+      try {
+        const res = await fetch(`${API_BASE}/v1/assess`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildPayload()) });
+        const body = await res.json();
+        if (!res.ok) throw new Error([body.error, ...(body.details || [])].join(" "));
+        state.result = body;
+        showAlert("");
+        renderResults();
+      } catch (err) {
+        showAlert(`Assessment failed: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Generate report";
+      }
+    }
+
+    function renderResults() {
+      const { entity, results, exportData } = state.result;
+      const tier = TIER_STYLE[results.riskTier];
+      $("wizard").classList.add("hidden");
+      $("results").classList.remove("hidden");
+
+      $("score-ring").style.setProperty("--ring-color", tier.ring);
+      $("score-ring").style.setProperty("--score", String(results.riskScore));
+      $("score-value").textContent = String(results.riskScore);
+      $("result-sector").textContent = entity.sectorLabel;
+      $("results-title").textContent = entity.organizationName;
+      $("tier-badge").className = `inline-block rounded-full px-3 py-1 text-sm font-semibold ${tier.badge}`;
+      $("tier-badge").textContent = `${results.riskTier.replace("_", " ")} · ${tier.label}`;
+      $("stat-critical").textContent = String(results.criticalGapCount);
+      $("stat-gaps").textContent = String(results.gapDetails.length);
+      $("stat-unanswered").textContent = String(results.unansweredCount);
+      $("payload").value = exportData.copyPastePayload;
+      $("copy-status").textContent = "";
+
+      $("gap-list").replaceChildren(
+        ...(results.gapDetails.length
+          ? results.gapDetails.map((g) =>
+              h("li", { class: "rounded-xl border border-slate-200 p-4" },
+                h("div", { class: "flex flex-wrap items-center gap-2" },
+                  h("span", { class: `rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ${SEVERITY_STYLE[g.severity]}` }, g.severity),
+                  h("span", { class: "text-xs font-medium text-slate-600" }, g.pillarTitle),
+                  h("code", { class: "text-[11px] text-slate-500" }, g.fieldId),
+                ),
+                h("p", { class: "mt-2 text-sm font-medium text-slate-900" }, g.finding),
+                g.references.length ? h("p", { class: "mt-1 text-xs text-slate-600" }, "Ref: " + g.references.join("; ")) : null,
+              ))
+          : [h("li", { class: "text-sm text-emerald-800" }, "No control gaps identified. Keep evidence of each control ready for AUSTRAC.")]),
+      );
+
+      $("pillar-list").replaceChildren(
+        ...results.pillarSummary.filter((p) => p.gapCount + p.riskFactorCount > 0 || p.score > 0).map((p) =>
+          h("li", {},
+            h("div", { class: "flex items-center justify-between text-sm" }, h("span", { class: "font-medium" }, p.title), h("span", { class: "text-slate-600" }, `${p.score}/100 · ${p.gapCount} gap(s)`)),
+            h("div", { class: "mt-1 h-2 overflow-hidden rounded-full bg-slate-200" },
+              h("div", { class: `h-full rounded-full transition-all duration-700 ${p.score >= 70 ? "bg-red-700" : p.score >= 45 ? "bg-orange-600" : p.score >= 20 ? "bg-amber-500" : "bg-emerald-600"}`, style: `width:${p.score}%` }),
+            ),
+            h("details", { class: "mt-1 text-xs text-slate-600" }, h("summary", { class: "cursor-pointer" }, "Penalty scope"), h("p", { class: "mt-1" }, p.penaltyScope)),
+          ),
+        ),
+      );
+
+      $("risk-list").replaceChildren(
+        ...(results.riskFactors.length ? results.riskFactors.map((r) => h("li", {}, r)) : [h("li", {}, "No inherent risk factors flagged.")]),
+      );
+
+      $("results-title").focus();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    async function copyPayload() {
+      const text = $("payload").value;
+      const status = $("copy-status");
+      try {
+        if (!navigator.clipboard || !window.isSecureContext) throw new Error("Clipboard API unavailable");
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const area = $("payload");
+        area.focus();
+        area.select();
+        if (!document.execCommand("copy")) {
+          status.textContent = "Copy blocked by the browser — the text is selected, press Ctrl/Cmd + C.";
+          return;
+        }
+      }
+      const rows = text.split("\n").length - 1;
+      status.textContent = `Copied ${rows} rows to your clipboard.`;
+      $("copy-label").textContent = "Copied ✓";
+      setTimeout(() => { $("copy-label").textContent = "Copy Data Pack for AUSTRAC"; }, 2500);
+    }
+
+    function downloadPayload() {
+      const { entity, meta } = state.result;
+      const blob = new Blob([$("payload").value], { type: "text/tab-separated-values;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const slug = entity.organizationName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "entity";
+      h("a", { href: url, download: `austrac-data-pack-${slug}-${meta.assessedAt.slice(0, 10)}.tsv` }).click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    $("wizard-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (state.stepIndex === 0) {
+        if (!state.meta.organizationName.trim() || !state.sectorId) {
+          showAlert("Enter your organisation name and choose an industry vertical to continue.");
+          return;
+        }
+      }
+      showAlert("");
+      if (state.stepIndex === steps().length - 1) { submitAssessment(); return; }
+      state.stepIndex += 1;
+      renderStep(true);
+    });
+    $("back-btn").addEventListener("click", () => { state.stepIndex = Math.max(0, state.stepIndex - 1); renderStep(true); });
+    $("copy-btn").addEventListener("click", copyPayload);
+    $("download-btn").addEventListener("click", downloadPayload);
+    $("edit-btn").addEventListener("click", () => { $("results").classList.add("hidden"); $("wizard").classList.remove("hidden"); renderStep(true); });
+    $("restart-btn").addEventListener("click", () => {
+      Object.assign(state, { sectorId: "", answers: {}, stepIndex: 0, result: null, meta: { organizationName: "", location: "", assessmentTarget: "AUSTRAC Tranche 2 Readiness Review" } });
+      $("results").classList.add("hidden");
+      $("wizard").classList.remove("hidden");
+      renderStep(true);
+    });
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/v1/questionnaire`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        state.questionnaire = await res.json();
+        $("disclaimer").textContent = state.questionnaire.disclaimer;
+        $("ruleset-badge").textContent = `Ruleset ${state.questionnaire.rulesetVersion}`;
+        $("ruleset-badge").classList.remove("hidden");
+        $("loading").classList.add("hidden");
+        $("wizard").classList.remove("hidden");
+        renderStep();
+      } catch (err) {
+        $("loading").classList.add("hidden");
+        showAlert(`Could not reach the assessment API at ${API_BASE || location.origin}. Set the aml-api-base meta tag to your Worker URL. (${err.message})`);
+      }
+    })();
+  })();
+  </script>
+</body>
+</html>
