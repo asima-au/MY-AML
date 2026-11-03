@@ -9,7 +9,8 @@
     "pages:deploy": "wrangler pages deploy public --project-name aml-tranche2",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.ts test/*.test.mjs",
-    "build:demo": "node scripts/build-demo.mjs"
+    "build:demo": "node scripts/build-demo.mjs",
+    "build:engine-demo": "node scripts/build-engine-demo.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261102.1",

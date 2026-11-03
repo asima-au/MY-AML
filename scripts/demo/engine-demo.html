@@ -1,0 +1,345 @@
+<title>AML Case Engine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: Object.fromEntries(
+          ["bg", "surface", "surface-2", "ink", "muted", "line", "brand", "brand-soft", "on-brand", "ok", "ok-soft", "warn", "warn-soft", "esc", "esc-soft", "crit", "crit-soft"]
+            .map((n) => [n, `rgb(var(--${n}) / <alpha-value>)`]),
+        ),
+        fontFamily: {
+          display: ['"Bricolage Grotesque"', "ui-sans-serif", "system-ui", "sans-serif"],
+          sans: ["Geist", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+          mono: ['"Geist Mono"', "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        },
+      },
+    },
+  };
+</script>
+<style>
+  /* Layout: controls (scenario cards + who-is-looking switch) above a case file: summary band, 4 phase panels, then alerts / documents / audit chain. */
+  :root {
+    --bg: 243 246 245; --surface: 255 255 255; --surface-2: 234 239 237; --ink: 15 27 25; --muted: 78 95 91; --line: 213 222 219;
+    --brand: 12 92 86; --brand-soft: 219 239 235; --on-brand: 255 255 255;
+    --ok: 21 112 56; --ok-soft: 220 247 229; --warn: 133 81 6; --warn-soft: 254 243 199;
+    --esc: 180 60 10; --esc-soft: 255 234 213; --crit: 185 28 28; --crit-soft: 254 226 226;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: 10 17 16; --surface: 17 27 26; --surface-2: 25 38 36; --ink: 229 238 235; --muted: 150 169 164; --line: 41 58 55;
+      --brand: 94 206 190; --brand-soft: 18 52 49; --on-brand: 5 28 26;
+      --ok: 74 222 128; --ok-soft: 14 52 31; --warn: 250 204 21; --warn-soft: 60 46 8;
+      --esc: 251 154 84; --esc-soft: 70 33 10; --crit: 252 129 129; --crit-soft: 72 22 22;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: 10 17 16; --surface: 17 27 26; --surface-2: 25 38 36; --ink: 229 238 235; --muted: 150 169 164; --line: 41 58 55;
+    --brand: 94 206 190; --brand-soft: 18 52 49; --on-brand: 5 28 26;
+    --ok: 74 222 128; --ok-soft: 14 52 31; --warn: 250 204 21; --warn-soft: 60 46 8;
+    --esc: 251 154 84; --esc-soft: 70 33 10; --crit: 252 129 129; --crit-soft: 72 22 22;
+    color-scheme: dark;
+  }
+  body { background: rgb(var(--bg)); color: rgb(var(--ink)); font-family: Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  @media (min-width: 640px) { .gutter { padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); } }
+  h1, h2, h3 { text-wrap: balance; }
+  .tabular { font-variant-numeric: tabular-nums; }
+  .fade { animation: fade .25s ease-out; }
+  @keyframes fade { from { opacity: .45; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="min-h-full">
+  <header class="border-b border-line bg-surface/70">
+    <div class="gutter mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 py-4">
+      <div class="flex items-center gap-3">
+        <span class="grid h-9 w-9 place-items-center rounded-xl bg-brand text-on-brand">
+          <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>
+        </span>
+        <div>
+          <h1 class="font-display text-lg font-bold leading-tight">AML Case Engine</h1>
+          <p class="text-xs text-muted">4 phases · 13 checkpoints · AUSTRAC tipping-off barrier</p>
+        </div>
+      </div>
+      <p class="rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted">Your engine code, running in this page. Example cases only.</p>
+    </div>
+  </header>
+
+  <main class="gutter mx-auto max-w-7xl space-y-6 py-6 sm:py-8">
+    <section aria-labelledby="pick-title" class="space-y-3">
+      <h2 id="pick-title" class="text-xs font-semibold uppercase tracking-[.14em] text-muted">1 · Choose a case</h2>
+      <div id="scenarios" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
+    </section>
+
+    <section aria-labelledby="role-title" class="space-y-3">
+      <h2 id="role-title" class="text-xs font-semibold uppercase tracking-[.14em] text-muted">2 · See it as</h2>
+      <div id="roles" role="group" aria-labelledby="role-title" class="grid grid-cols-2 gap-2 lg:grid-cols-4"></div>
+    </section>
+
+    <div id="view" class="space-y-6"></div>
+
+    <section aria-labelledby="confirm-title" class="rounded-2xl border border-line bg-surface p-5 text-sm sm:p-6">
+      <h2 id="confirm-title" class="font-display text-base font-bold">Rules engine, not legal advice. Confirm before production:</h2>
+      <ul id="confirm" class="mt-3 grid gap-x-8 gap-y-1.5 text-muted md:grid-cols-2"></ul>
+    </section>
+  </main>
+</div>
+
+<script>/*__ENGINE_BUNDLE__*/</script>
+<script>
+"use strict";
+(() => {
+  const E = window.AmlEngine;
+  const $ = (id) => document.getElementById(id);
+
+  function h(tag, attrs = {}, ...children) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v === undefined || v === null || v === false) continue;
+      if (k === "class") el.className = v;
+      else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? "" : String(v));
+    }
+    for (const c of children.flat()) if (c !== null && c !== undefined && c !== false) el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    return el;
+  }
+
+  const ROLES = [
+    { id: "amlco", label: "Compliance officer", note: "Full case file" },
+    { id: "compliance_analyst", label: "Compliance analyst", note: "Full case file" },
+    { id: "frontline", label: "Front-line staff", note: "Neutral view only" },
+    { id: "customer", label: "Customer", note: "Neutral view only" },
+  ];
+  const STATUS = {
+    pass: ["Pass", "bg-ok-soft text-ok"],
+    action_required: ["Action required", "bg-warn-soft text-warn"],
+    escalated: ["Escalated", "bg-esc-soft text-esc"],
+    routed: ["Routed", "bg-brand-soft text-brand"],
+    blocked: ["Blocked", "bg-crit-soft text-crit"],
+    fail: ["Fail", "bg-crit-soft text-crit"],
+    not_applicable: ["Not applicable", "bg-surface-2 text-muted"],
+  };
+  const STATES = {
+    APPROVED_MONITORING: ["Approved · under monitoring", "bg-ok-soft text-ok"],
+    ON_HOLD_PRESCREEN: ["On hold · pre-screening", "bg-warn-soft text-warn"],
+    ON_HOLD_CDD: ["On hold · customer due diligence", "bg-warn-soft text-warn"],
+    ON_HOLD_EDD: ["On hold · enhanced due diligence", "bg-warn-soft text-warn"],
+    BLOCKED_ENROLMENT: ["Blocked · enrolment", "bg-crit-soft text-crit"],
+    BLOCKED_SANCTIONS: ["Blocked · sanctions", "bg-crit-soft text-crit"],
+  };
+  const PHASES = ["Pre-screening and setup", "Customer due diligence", "Enhanced due diligence", "Finalisation and reporting"];
+  const melb = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+  const melbDate = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Melbourne", day: "numeric", month: "long", year: "numeric" });
+  const when = (iso) => `${melb.format(new Date(iso))} Melbourne`;
+  const sectorName = (id) => E.SECTORS[id].label.split(" (")[0];
+
+  const state = { scenarioId: E.DEMO_SCENARIOS[0].id, role: "amlco", released: false, proof: null };
+
+  function currentRecord() {
+    const sc = E.DEMO_SCENARIOS.find((s) => s.id === state.scenarioId);
+    const first = E.runCase(structuredClone(sc.input));
+    if (!state.released || !first.reports.smr) return { sc, record: first };
+    const input = structuredClone(sc.input);
+    input.amlcoReleasedRequests = first.documentsToCollect;
+    return { sc, record: E.runCase(input) };
+  }
+
+  const pill = ([label, cls], extra = "") => h("span", { class: `inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls} ${extra}` }, label);
+  const card = (cls = "") => `min-w-0 rounded-2xl border border-line bg-surface ${cls}`;
+  const lock = () => h("span", { class: "inline-flex items-center gap-1 rounded-md bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted", title: "Restricted to SMR-cleared roles" },
+    h("svg", { "aria-hidden": "true", viewBox: "0 0 24 24", class: "h-3 w-3", fill: "none", stroke: "currentColor", "stroke-width": "2.2" }), "Restricted");
+
+  // Build the lock icon path once (createElement cannot make SVG children).
+  function lockIcon() {
+    const el = lock();
+    el.firstChild.outerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+    return el;
+  }
+
+  function renderPickers() {
+    $("scenarios").replaceChildren(...E.DEMO_SCENARIOS.map((sc) => {
+      const on = sc.id === state.scenarioId;
+      return h("button", { type: "button", "aria-pressed": String(on), onclick: () => { state.scenarioId = sc.id; state.released = false; state.proof = null; render(); },
+        class: `flex flex-col gap-1 rounded-2xl border p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${on ? "border-brand bg-brand-soft" : "border-line bg-surface hover:border-muted/50"}` },
+        h("span", { class: `text-[11px] font-semibold uppercase tracking-[.12em] ${on ? "text-brand" : "text-muted"}` }, sectorName(sc.sector)),
+        h("span", { class: "font-display text-[15px] font-bold leading-snug" }, sc.title),
+        h("span", { class: "text-xs leading-relaxed text-muted" }, sc.summary));
+    }));
+    $("roles").replaceChildren(...ROLES.map((r) => {
+      const on = r.id === state.role;
+      return h("button", { type: "button", "aria-pressed": String(on), onclick: () => { state.role = r.id; render(); },
+        class: `rounded-xl border px-3 py-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${on ? "border-ink bg-ink text-bg" : "border-line bg-surface hover:border-muted/50"}` },
+        h("span", { class: "block text-sm font-semibold" }, r.label),
+        h("span", { class: `block text-xs ${on ? "opacity-75" : "text-muted"}` }, r.note));
+    }));
+  }
+
+  function summary(sc, rec) {
+    const facts = [
+      ["Risk", `${rec.risk.level === "not_assessed" ? "Not assessed" : rec.risk.level[0].toUpperCase() + rec.risk.level.slice(1)} · score ${rec.risk.score}`],
+      ["Enhanced due diligence", rec.risk.eddRequired ? "Required" : "Not required"],
+      ...rec.reports.ttr.map((t) => ["TTR due", when(t.dueBy)]),
+      ...(rec.reports.smr ? [["SMR due", `${when(rec.reports.smr.dueBy)}${rec.reports.smr.terrorismFinancing ? " (24 hours)" : " (3 business days)"}`]] : []),
+      ["Keep records until", `${melbDate.format(new Date(rec.retainUntil))}${rec.retention.provisional ? " at least" : ""}`],
+    ];
+    return h("section", { class: `${card("p-5 sm:p-6")} fade`, "aria-labelledby": "case-title" },
+      h("div", { class: "flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between" },
+        h("div", { class: "min-w-0" },
+          h("p", { class: "font-mono text-xs text-muted" }, `${rec.caseId} · assessed ${when(sc.input.now)}`),
+          h("h2", { id: "case-title", class: "mt-1 font-display text-2xl font-bold tracking-tight" }, sc.title),
+          h("p", { class: "mt-1 text-sm text-muted" }, sectorName(rec.sector))),
+        pill(STATES[rec.state], "self-start px-3.5 py-1.5 text-sm")),
+      h("dl", { class: "mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" }, facts.map(([k, v]) =>
+        h("div", { class: `rounded-xl px-3.5 py-3 ${k === "SMR due" ? "bg-crit-soft" : "bg-surface-2/70"}` },
+          h("dt", { class: `text-xs ${k === "SMR due" ? "text-crit" : "text-muted"}` }, k),
+          h("dd", { class: "tabular mt-0.5 text-sm font-semibold" }, v)))));
+  }
+
+  function phases(rec) {
+    return h("section", { class: "grid gap-4 lg:grid-cols-2 fade", "aria-label": "Checkpoints by phase" },
+      PHASES.map((name, i) => h("div", { class: card("p-5") },
+        h("h3", { class: "flex items-baseline gap-2 text-sm font-semibold" }, h("span", { class: "font-mono text-xs text-muted" }, `Phase ${i + 1}`), name),
+        h("ol", { class: "mt-3 divide-y divide-line" }, rec.checkpoints.filter((c) => c.phase === i + 1).map((c) =>
+          h("li", { class: "py-3 first:pt-1 last:pb-0" },
+            h("div", { class: "flex flex-wrap items-center gap-2" },
+              h("span", { class: "tabular grid h-6 w-6 shrink-0 place-items-center rounded-full bg-surface-2 text-[11px] font-semibold" }, String(c.id)),
+              h("span", { class: "min-w-0 flex-1 text-sm font-medium" }, c.name),
+              c.restricted ? lockIcon() : null,
+              pill(STATUS[c.status] || [c.status, "bg-surface-2 text-muted"])),
+            c.findings.filter(Boolean).length ? h("ul", { class: "mt-1.5 space-y-0.5 pl-8 text-xs leading-relaxed text-muted" },
+              c.findings.filter(Boolean).map((f) => h("li", {}, f))) : null))))));
+  }
+
+  function alertsPanel(rec) {
+    return h("section", { class: card("p-5"), "aria-labelledby": "alerts-title" },
+      h("h3", { id: "alerts-title", class: "font-display text-base font-bold" }, "Alerts and routing"),
+      rec.alerts.length ? h("ul", { class: "mt-3 space-y-2" }, rec.alerts.map((a) =>
+        h("li", { class: "rounded-xl bg-surface-2/70 px-3 py-2.5" },
+          h("div", { class: "flex flex-wrap items-center justify-between gap-2" },
+            h("span", { class: "font-mono text-xs font-medium" }, a.type),
+            h("span", { class: "text-xs text-muted" }, `→ ${a.queue} queue`)),
+          a.dueBy ? h("p", { class: "tabular mt-1 text-xs text-muted" }, `Due ${when(a.dueBy)}`) : null)))
+        : h("p", { class: "mt-3 text-sm text-muted" }, "No alerts for this case."));
+  }
+
+  function documentsPanel(rec) {
+    const held = rec.releasedRequests !== null;
+    const released = new Set(rec.releasedRequests || []);
+    return h("section", { class: card("p-5"), "aria-labelledby": "docs-title" },
+      h("h3", { id: "docs-title", class: "font-display text-base font-bold" }, "Documents to collect"),
+      held ? h("p", { class: "mt-1 text-xs text-crit" }, "A suspicion is on file: requests reach the customer only after the officer releases them.") : null,
+      rec.documentsToCollect.length ? h("ul", { class: "mt-3 space-y-2 text-sm" }, rec.documentsToCollect.map((d) =>
+        h("li", { class: "flex items-start justify-between gap-3" }, h("span", {}, d),
+          h("span", { class: `shrink-0 text-xs font-semibold ${!held || released.has(d) ? "text-ok" : "text-warn"}` }, !held ? "Sent" : released.has(d) ? "Released" : "Held"))))
+        : h("p", { class: "mt-3 text-sm text-muted" }, "Nothing outstanding."),
+      held && rec.documentsToCollect.length && state.role === "amlco"
+        ? h("button", { type: "button", onclick: () => { state.released = !state.released; render(); },
+            class: "mt-4 rounded-lg border border-line px-3 py-2 text-xs font-semibold transition-colors hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand" },
+            state.released ? "Hold the requests again" : "Release requests to the customer")
+        : null);
+  }
+
+  function auditPanel(sc, rec) {
+    const entries = rec.audit.export();
+    const proof = state.proof;
+    return h("section", { class: card("p-5"), "aria-labelledby": "audit-title" },
+      h("h3", { id: "audit-title", class: "font-display text-base font-bold" }, "Audit chain"),
+      h("p", { class: "mt-1 text-xs text-muted" }, `${entries.length} entries, each sealed with the SHA-256 hash of the one before.`),
+      h("div", { class: "mt-3 max-h-56 overflow-y-auto rounded-xl bg-surface-2/60 p-2" },
+        h("ol", { class: "space-y-1" }, entries.map((e) => h("li", { class: "flex items-center gap-2 font-mono text-[11px]" },
+          h("span", { class: "tabular w-5 text-right text-muted" }, String(e.seq)),
+          h("span", { class: "min-w-0 flex-1 truncate" }, e.action),
+          e.restricted ? null : h("span", { class: "rounded bg-ok-soft px-1 text-[10px] text-ok" }, "public"),
+          h("span", { class: "text-muted" }, `${e.hash.slice(0, 10)}…`))))),
+      h("div", { class: "mt-3 flex flex-wrap gap-2" },
+        h("button", { type: "button", class: "rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-on-brand transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2",
+          onclick: () => {
+            const heads = [1, 2, 3].map(() => E.runCase(structuredClone(sc.input)).auditAnchor.head);
+            state.proof = { kind: "runs", heads, same: new Set(heads).size === 1 };
+            render();
+          } }, "Run this case 3 times"),
+        h("button", { type: "button", class: "rounded-lg border border-line px-3 py-2 text-xs font-semibold transition-colors hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand",
+          onclick: () => {
+            const stored = rec.audit.export().map((e) => ({ ...e }));
+            stored[1] = { ...stored[1], actor: "someone_else" };
+            state.proof = { kind: "tamper", result: E.verifyChain(stored) };
+            render();
+          } }, "Tamper with a stored copy")),
+      proof ? h("div", { class: `mt-3 rounded-xl p-3 text-xs ${proof.kind === "runs" ? (proof.same ? "bg-ok-soft text-ok" : "bg-crit-soft text-crit") : "bg-crit-soft text-crit"}`, role: "status" },
+        proof.kind === "runs"
+          ? [h("p", { class: "font-semibold" }, proof.same ? "All 3 runs produced the same final hash." : "Runs differed."),
+             ...proof.heads.map((x, i) => h("p", { class: "mt-1 break-all font-mono" }, `Run ${i + 1}: ${x}`))]
+          : [h("p", { class: "font-semibold" }, `Tampering detected at entry ${proof.result.brokenAt}.`),
+             h("p", { class: "mt-1" }, `Reason: ${proof.result.reason}. Changing one word in entry 2 breaks its hash.`)]) : null);
+  }
+
+  function neutralView(sc, rec) {
+    const view = E.projectForAudience(rec, state.role);
+    const audit = rec.audit.view(state.role);
+    const removed = [
+      `${rec.checkpoints.length} checkpoint results`,
+      `the case state (${STATES[rec.state][0].toLowerCase()})`,
+      `the risk rating (${rec.risk.level})`,
+      `${rec.alerts.length} alert${rec.alerts.length === 1 ? "" : "s"}`,
+      rec.reports.smr ? "the SMR and its deadline" : null,
+      rec.reports.ttr.length ? `${rec.reports.ttr.length} threshold transaction report` : null,
+      `${rec.audit.length - audit.length} of ${rec.audit.length} audit entries`,
+      rec.releasedRequests !== null && rec.documentsToCollect.length > view.documentsRequested.length
+        ? `${rec.documentsToCollect.length - view.documentsRequested.length} held document request${rec.documentsToCollect.length - view.documentsRequested.length === 1 ? "" : "s"}` : null,
+    ].filter(Boolean);
+    const who = state.role === "customer" ? "the customer" : "front-line staff";
+    const samples = ["Please upload a recent bank statement.", "We have lodged a suspicious matter report about your purchase.", "Your case is on hold while we check sanctions lists."];
+    const out = h("p", { id: "gate-result", class: "mt-3 min-h-[1.25rem] text-sm font-medium", role: "status" });
+    const textarea = h("textarea", { id: "gate-text", rows: "3", class: "mt-3 w-full rounded-xl border border-line bg-surface p-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30" }, samples[1]);
+    const send = () => {
+      const r = E.gateNotification({ audienceRole: state.role, text: textarea.value });
+      out.className = `mt-3 min-h-[1.25rem] text-sm font-medium ${r.allowed ? "text-ok" : "text-crit"}`;
+      out.textContent = r.allowed ? `Delivered to ${who}.` : `Withheld from ${who}: it contains ${r.leaked.map((t) => `"${t}"`).join(", ")}.`;
+    };
+
+    return h("div", { class: "grid gap-6 lg:grid-cols-2 fade" },
+      h("section", { class: card("p-5 sm:p-6"), "aria-labelledby": "portal-title" },
+        h("p", { class: "text-xs font-semibold uppercase tracking-[.12em] text-muted" }, `What ${who} sees`),
+        h("div", { class: "mt-4 rounded-2xl border border-line bg-bg p-5" },
+          h("p", { class: "font-mono text-xs text-muted" }, `Reference ${view.caseId}`),
+          h("h2", { id: "portal-title", class: "mt-2 font-display text-2xl font-bold" }, view.status),
+          view.documentsRequested.length
+            ? [h("p", { class: "mt-4 text-sm font-medium" }, "We need from you:"), h("ul", { class: "mt-2 list-disc space-y-1 pl-5 text-sm" }, view.documentsRequested.map((d) => h("li", {}, d)))]
+            : h("p", { class: "mt-4 text-sm text-muted" }, "Nothing is needed from you right now.")),
+        h("p", { class: "mt-4 text-xs font-medium text-muted" }, "The data behind that screen, in full:"),
+        h("pre", { class: "mt-2 overflow-x-auto rounded-xl bg-surface-2/70 p-3 font-mono text-xs" }, JSON.stringify(view, null, 2))),
+      h("div", { class: "min-w-0 space-y-6" },
+        h("section", { class: card("p-5 sm:p-6"), "aria-labelledby": "barrier-title" },
+          h("h3", { id: "barrier-title", class: "font-display text-base font-bold" }, "Removed by the tipping-off barrier"),
+          h("p", { class: "mt-1 text-xs text-muted" }, "Listed here for this demo only. AML/CTF Act s 123."),
+          h("ul", { class: "mt-3 space-y-1.5 text-sm" }, removed.map((r) => h("li", { class: "flex gap-2" }, h("span", { class: "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-crit" }), r)))),
+        h("section", { class: card("p-5 sm:p-6"), "aria-labelledby": "gate-title" },
+          h("h3", { id: "gate-title", class: "font-display text-base font-bold" }, `Message ${who}`),
+          h("p", { class: "mt-1 text-xs text-muted" }, "Every outgoing message passes the notification gate."),
+          h("div", { class: "mt-3 flex flex-wrap gap-2" }, samples.map((t) => h("button", { type: "button", onclick: () => { textarea.value = t; send(); },
+            class: "rounded-full border border-line px-3 py-1 text-xs transition-colors hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand" }, t.length > 34 ? `${t.slice(0, 32)}…` : t))),
+          h("label", { for: "gate-text", class: "sr-only" }, "Message text"),
+          textarea,
+          h("button", { type: "button", onclick: send, class: "mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-on-brand transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" }, "Send"),
+          out)));
+  }
+
+  function render() {
+    renderPickers();
+    const { sc, record } = currentRecord();
+    const restricted = state.role === "amlco" || state.role === "compliance_analyst";
+    $("view").replaceChildren(...(restricted
+      ? [summary(sc, record), phases(record), h("div", { class: "grid gap-4 lg:grid-cols-3 fade" }, alertsPanel(record), documentsPanel(record), auditPanel(sc, record))]
+      : [neutralView(sc, record)]));
+  }
+
+  $("confirm").replaceChildren(...E.TO_CONFIRM.map((t) => h("li", { class: "flex gap-2" }, h("span", { class: "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-warn" }), t)));
+  render();
+})();
+</script>
