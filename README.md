@@ -42,3 +42,14 @@ npm run deploy         # Worker → https://aml-tranche2-assessor.<account>.work
 - Legal citations in `src/rules.ts` need sign-off from a qualified AML/CTF practitioner against current legislation, the AML/CTF Rules 2025 and AUSTRAC guidance.
 - The data pack is a structured record of the assessment, not an AUSTRAC-published import schema. AUSTRAC Online enrolment and reporting forms define their own fields.
 - The Tailwind Play CDN suits a launch; switch to a compiled stylesheet for production performance.
+
+## AML/CTF case engine (`src/*.js`)
+
+Per-customer case engine: 9 sectors, 4 phases, 13 checkpoints, tipping-off barrier (s 123) and a hash-chained audit log. Plain Node.js ES modules, no dependencies.
+
+```sh
+npm test                           # includes test/scenarios.test.mjs (3 scenarios × 3 runs)
+node scripts/aml-test-report.mjs   # checkpoint-by-checkpoint 3×3 report
+```
+
+Design, data model, test report and the list of items to confirm before production: [`docs/BLUEPRINT.md`](docs/BLUEPRINT.md).

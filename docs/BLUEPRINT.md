@@ -1,6 +1,6 @@
 # AML/CTF Compliance Tool: Blueprint and Test Report
 
-Code: `src/` (engine, sectors, projection, audit, dates, config). Tests: `test/`. Run `npm test`.
+Code: `src/` (engine, sectors, projection, audit, dates, config). Tests: `test/scenarios.test.mjs`. Run `npm test`. Print the 3×3 checkpoint report with `node scripts/aml-test-report.mjs`.
 
 This is a rules engine and data model, not legal advice. Before production use, a compliance officer must confirm every parameter in `src/config.js` and every sector rule in `src/sectors.js` against current AUSTRAC guidance, the AML/CTF Act 2006, the AML/CTF Rules, and the AML/CTF Amendment Act 2024.
 
@@ -18,17 +18,19 @@ This is a rules engine and data model, not legal advice. Before production use, 
 
 ### Sector routing
 
-| Sector | Regime | Questions asked (beyond core KYC) | Sector risk rules |
-|---|---|---|---|
-| Professional services | Tranche 2 | Service type; formation jurisdiction (only for formations and trusts); client funds through trust account; nominee request | Offshore formation; elevated-risk jurisdiction; nominee request. Advice-only work is outside the designated service |
-| Real estate | Tranche 2 | Property type; price; deposit method; buyer vehicle | Entity or trust buyer; third-party deposit; overseas deposit; price of AUD 5m or more |
-| Financial services | Existing | Product; expected monthly volume; international counterparties | International activity; volume of AUD 1m or more a month. International transfers raise IFTI alerts |
-| Virtual assets | Existing | Service; wallets declared; travel rule data; privacy tools | Mixer or privacy-coin exposure; travel rule gaps; undeclared wallets |
-| Remittance | Existing | Destination; amount; relationship to beneficiary; cash funding | Unexplained beneficiary; cash funding. International transfers raise IFTI alerts |
-| Bullion | Existing | Metal; order value; cash component; collection method | Cash of AUD 10,000 or more; high-value in-person collection |
-| Precious metals and stones | Tranche 2 | Item type; sale value; cash component | Cash of AUD 10,000 or more; loose stones. In scope only for cash at or above the threshold |
-| Gambling | Existing | Venue type; EGM count (venues only); cash in; minimal play | Minimal play before cash out; cash of AUD 10,000 or more |
-| Trust and company service providers | Tranche 2 | Service; jurisdiction | Nominee service; elevated-risk jurisdiction |
+| Sector | Regime | Questions (conditional ones in *italics*) | Sector risk rules | Exemption rule (confirm) |
+|---|---|---|---|---|
+| Professional services | Tranche 2 | Service type; *formation jurisdiction*; *client funds through trust account*; *nominee request*; *nominee reason* | Offshore formation; elevated-risk jurisdiction; nominee request | Advice only |
+| Real estate | Tranche 2 | Service scope; *property type*; *price*; *deposit method*; *third-party payer*; *buyer vehicle*; *FIRB approval* | Entity or trust buyer; third-party, overseas or cash deposit; price of AUD 5m or more; foreign buyer without FIRB | Leasing or property management only |
+| Financial services | Existing | Product; *monthly volume*; *international counterparties*; *main counterparty country* | International activity; AUD 1m+ a month; elevated-risk counterparty. Raises IFTI alerts | Advice only |
+| Virtual assets | Existing | Service; *wallets declared*; *wallet analytics result*; *travel rule data*; *privacy tools* | Mixers or privacy coins; travel rule gaps; undeclared wallets; direct illicit exposure | Non-custodial software only |
+| Remittance | Existing | Business model; *destination*; *amount*; *beneficiary relationship*; *relationship explanation*; *cash funding* | Unestablished beneficiary; cash funding; elevated-risk destination. Raises IFTI alerts | Paying own suppliers |
+| Bullion | Existing | Product form; *metal*; order value; cash; *collection*; *courier to customer's address* | Cash AUD 10,000+; high-value in-person collection; delivery elsewhere | Not bullion (coins, jewellery) |
+| Precious metals and stones | Tranche 2 | Item type; sale value; cash; *export*; *destination* | Cash AUD 10,000+; loose stones; export | Cash under AUD 10,000 |
+| Gambling | Existing | Venue type; *EGM count*; *cash in*; *account funded in own name*; minimal play | Minimal play; cash AUD 10,000+; third-party funding | 15 or fewer EGMs and cash under AUD 10,000 |
+| Trust and company service providers | Tranche 2 | Service; jurisdiction; *nominator identified*; *listed client* | Nominee service; nominator unknown; elevated-risk jurisdiction | Registered office for a listed company |
+
+An exempt case (valid answers and the exemption applies) runs only checkpoints 3 (sanctions law applies regardless), 7 (records the exemption) and 13; the others are `not_applicable` and an unenrolled firm is not blocked.
 
 Branching is in two places:
 - **Question level:** `required` can be a function of earlier answers. For example, a formation jurisdiction is required only when the service is a formation.
@@ -38,19 +40,19 @@ Branching is in two places:
 
 | # | Phase | Checkpoint | Passes when | Statuses |
 |---|---|---|---|---|
-| 1 | Pre-screening | AUSTRAC enrolment | Entity is enrolled, has an enrolment number, and its enrolment covers the sector | pass / blocked |
-| 2 | Pre-screening | Compliance officer sign-off | Officer appointed; program approved within 12 months; for EDD cases, officer approval recorded | pass / fail / action_required |
-| 3 | Pre-screening | Sanctions and PEP screening | Every subject (customer, owners, trustees) screened; no confirmed sanctions match. PEPs recorded | pass / action_required / blocked |
+| 1 | Pre-screening | AUSTRAC enrolment | Entity is enrolled, has an enrolment number, and its enrolment covers the sector. Remittance and virtual asset providers also need their registration | pass / blocked / not_applicable |
+| 2 | Pre-screening | Compliance officer sign-off | Officer appointed; program approved within 12 calendar months; for EDD cases, approval by the officer on record, dated no later than now | pass / fail / action_required |
+| 3 | Pre-screening | Sanctions and PEP screening | Every subject (customer, owners at every layer, trustees) screened; no confirmed sanctions match; no possible match left unreviewed. PEPs recorded | pass / action_required / blocked |
 | 4 | Customer due diligence | Individual identity | Name, date of birth and address present; two verified sources, one independent. For entities, every beneficial owner verified | pass / action_required |
 | 5 | Customer due diligence | Entity and trust | Registry extract (ASIC or foreign registry) shows registered; registration number held. Trusts: deed sighted, trust type, trustees verified | pass / action_required / not_applicable |
-| 6 | Customer due diligence | Beneficial ownership | Ownership adds up to no more than 100%; individuals at 25% or more, or with control, identified; layered holdings looked through | pass / action_required / not_applicable |
+| 6 | Customer due diligence | Beneficial ownership | Ownership at each layer adds up to no more than 100%; entity holders looked through (percentages multiplied per layer, aggregated per person); individuals at 25% or more, or with control, identified | pass / action_required / not_applicable |
 | 7 | Customer due diligence | Nature of business and profile | Sector questionnaire valid; nature, purpose and expected activity recorded | pass / action_required |
 | 8 | Enhanced due diligence | Risk escalation | Score computed; EDD triggered by high risk, a foreign PEP, a domestic PEP in a medium or high case, or a FATF call-for-action jurisdiction | pass / escalated |
 | 9 | Enhanced due diligence | Source of wealth | EDD only: declared, with at least one verified piece of evidence | pass / action_required / not_applicable |
-| 10 | Enhanced due diligence | Source of funds | Every origin account verified; traced amount within 1% of the transaction; third parties explained; cash origin documented | pass / action_required / not_applicable |
+| 10 | Enhanced due diligence | Source of funds | Every origin account verified; traced amount within 1% of the transaction; third parties explained (`thirdPartyExplanation`); cash origin documented | pass / action_required / not_applicable |
 | 11 | Finalisation | Transaction monitoring | TTR for cash of AUD 10,000 or more (10 business days); IFTI where the sector lodges them; structuring, PEP and high-risk alerts routed to the right queue | pass / routed |
-| 12 | Finalisation | SMR deadline | Suspicion formed: due in 24 hours (terrorism financing) or 3 business days (other). High-risk cases need a recorded suspicion decision | pass / action_required / fail |
-| 13 | Finalisation | Archive and audit log | Retention set to 7 years after the later of record creation and relationship end; audit hash chain verifies | pass / fail |
+| 12 | Finalisation | SMR deadline | Suspicion formed: due in 24 hours (terrorism financing) or 3 business days (other). `formedAt` is required; the clock never starts at "now". High-risk cases need a recorded suspicion decision | pass / action_required / fail |
+| 13 | Finalisation | Archive and audit log | Retention set to 7 years after the later of record creation and relationship end (provisional while the relationship is ongoing); audit hash chain verifies | pass / fail |
 
 ### Case states
 
@@ -74,7 +76,7 @@ States are evaluated in that order, so the most serious blocker wins. Each state
 3. **Forbidden-term check.** `assertNeutral` throws if a non-restricted view contains any of: smr, suspicion, PEP, sanction, risk, EDD, enhanced, escalation, alert, AUSTRAC, report, investigation, monitor, structuring, blocked, hold.
 4. **Notification gate.** `gateNotification` refuses any message to a customer or front-line staff member containing those terms.
 5. **Held requests.** Once a suspicion is formed, new document requests reach the customer only after the compliance officer releases them.
-6. **Restricted audit entries.** Risk, alert and SMR entries are marked restricted and filtered out of non-restricted audit views.
+6. **Restricted audit entries.** Entries are restricted by default. `audit.view(role)` gives customers nothing and front-line staff only the neutral `case_opened` entry. Case state, risk, alert and SMR entries are restricted.
 
 ---
 
@@ -98,7 +100,7 @@ Each scenario was run through all 13 checkpoints three times in a row inside one
 | 10 Source of funds | pass | pass | pass | AUD 850,000 deposit from the customer's own Australian account |
 | 11 Monitoring | routed | routed | routed | PEP relationship and high-risk alerts to the compliance officer |
 | 12 SMR | pass | pass | pass | Officer recorded no suspicion |
-| 13 Archive | pass | pass | pass | Retain until 2033-11-03; chain intact |
+| 13 Archive | pass | pass | pass | Retain until at least 2033-11-03 (relationship ongoing); chain intact |
 
 **Outcome:** `APPROVED_MONITORING` in all three runs. The customer sees "has been processed". A variant without the officer's EDD approval correctly stops at `ON_HOLD_EDD`.
 
@@ -155,7 +157,22 @@ All three runs of each scenario matched on the first pass. Reviewing for cases t
 | 2 | High-risk cases without a structuring, sanctions or FATF signal never asked the officer to decide on suspicion | Scenario 2 passed checkpoint 12 with no decision on record | High risk now counts as a red flag needing a recorded decision |
 | 3 | Automatic document requests reached the customer after a suspicion was formed | Requests sent without review could alert the customer | Held until the compliance officer releases them. Test: "document requests are held" |
 
-**Final result:** 11 tests, 11 passing, in each of three consecutive full runs. The tests cover the three scenarios (three runs each), a missing-approval variant, the 24-hour terrorism financing deadline, the notification gate, audit tamper detection, a sanctions block, the 9 questionnaires, the time-zone edge case, and held requests.
+### Defects found in review of the uploaded version, and fixed
+
+| # | Defect | Effect before the fix | Fix and test |
+|---|---|---|---|
+| 4 | The audit log exposed its internal array (`_entries`) | Any caller could edit, insert or delete entries | Entries are deep-frozen and private; `export()` returns a frozen copy; `verifyChain()` checks persisted copies, and head/length anchors catch truncation |
+| 5 | The `state_set` audit entry was non-restricted | `audit.view` showed front-line staff states such as `BLOCKED_SANCTIONS` (tipping-off leak) | Entries restricted by default; `view(role)` gives customers nothing |
+| 6 | Unconfirmed sanctions matches were ignored | A possible DFAT match passed screening unreviewed | Holds the case at `ON_HOLD_PRESCREEN` until confirmed or cleared |
+| 7 | No ownership look-through | Individuals behind a holding company were never identified, verified or screened | `lookThroughOwners` multiplies percentages through each layer and aggregates per person |
+| 8 | An explained third-party payment always failed checkpoint 10 | Legitimate family-company funding could never pass | Passes when explained and verified; still adds risk weight |
+| 9 | A suspicion without `formedAt` used "now" | The SMR deadline moved every time the case was re-run | Checkpoint 12 fails until `formedAt` is recorded |
+| 10 | Deadlines compared as strings | `…59Z` and `…59.000Z` compared wrongly | Compared as instants |
+| 11 | EDD approval not checked for who or when | Anyone, or a future-dated approval, satisfied it | Must be the officer on record, dated no later than now |
+| 12 | Exemption rules unused, mostly `() => false`; few conditional questions | Advice-only and other out-of-scope work ran full CDD and could be blocked for enrolment | Every sector has an exemption rule and conditional questions; exempt cases run only checkpoints 3, 7 and 13 |
+| 13 | Remittance and virtual asset registration not checked | An enrolled but unregistered remitter passed checkpoint 1 | `REGISTRATION_REQUIRED` in config |
+
+**Final result:** 27 engine tests (plus 9 for the readiness assessor), all passing in each of three consecutive full runs. Each scenario runs through all 13 checkpoints three times, and the three runs must be identical, including the audit hashes. `node scripts/aml-test-report.mjs` prints the checkpoint-by-checkpoint table.
 
 ---
 
@@ -188,8 +205,9 @@ ReportingEntity 1───* Case *───1 Customer 1───* Owner
 | austracEnrolment.status | `enrolled` / `pending` / `none` | must be `enrolled` (CP1) |
 | austracEnrolment.enrolmentNumber | string | required when enrolled |
 | austracEnrolment.sectorsRegistered | sector[] | must include `sector` |
+| registration.status | `registered` / other | required for remittance and virtual assets (CP1) |
 | program.amlcoAppointed, amlcoName | boolean, string | required (CP2) |
-| program.approvedAt | ISO datetime | within 365 days (CP2) |
+| program.approvedAt | ISO datetime | within 12 calendar months, not in the future (CP2) |
 
 **Customer**
 
@@ -202,20 +220,20 @@ ReportingEntity 1───* Case *───1 Customer 1───* Owner
 | individual.pep | {category: none/domestic/foreign/international_organisation, role} | feeds CP3 and CP8 |
 | entity.name, jurisdiction, registrationNumber | string | CP5 |
 | entity.registryExtract | {source, status, fetchedAt} | status must be `registered` |
-| entity.trustType, trustDeedSighted, trustees[] | string, boolean, {name, verified}[] | trusts (CP5) |
-| owners[] | {name, ownershipPct, control, isEntity, identityVerified, pep} | 25% or control test; entities looked through (CP6) |
+| entity.trustType, trustDeedSighted, trustees[] | string, boolean, {name, verified, type, registryExtract, registrationNumber}[] | trusts (CP5); a `type: 'company'` trustee needs its own registry extract |
+| owners[] | {name, ownershipPct, control, isEntity, owners[], identityVerified, pep, countryOfResidence} | 25% or control test; `isEntity` holders looked through via their own `owners[]` (CP6) |
 
 **Case inputs**
 
 | Field | Type | Used by |
 |---|---|---|
 | screening.screenedSubjects | string[] | CP3 completeness |
-| screening.sanctionsMatches | {subject, list, confirmed}[] | CP3 block when confirmed |
+| screening.sanctionsMatches | {subject, list, confirmed, cleared}[] | CP3: block when confirmed; hold until confirmed or cleared |
 | screening.pepMatches | {subject, category, role}[] | CP3, CP8 |
 | sectorAnswers | object, per sector | CP7, sector risk rules |
 | profile.natureOfBusiness, purposeOfRelationship, expectedActivity | string | CP7 |
 | sourceOfWealth.declared, evidence[] | string, {type, verified}[] | CP9 |
-| sourceOfFunds.amountAud, cashAud, cashOriginExplained, originAccounts[] | number, number, boolean, {institution, country, holderIsCustomer, holderName, amountAud, verified}[] | CP10 |
+| sourceOfFunds.amountAud, cashAud, cashOriginExplained, originAccounts[] | number, number, boolean, {institution, country, holderIsCustomer, holderName, thirdPartyExplanation, amountAud, verified}[] | CP10 |
 | transactions[] | {at, amountAud, cash, international} | CP11, structuring |
 | amlcoSignoff.edd | {approved, by, at} | CP2 for EDD cases |
 | suspicion | {formed, formedAt, terrorismFinancing, grounds[], submittedAt, assessedNoSuspicion} | CP12 (restricted) |
@@ -234,8 +252,10 @@ ReportingEntity 1───* Case *───1 Customer 1───* Owner
 | reports.ttr[] | transactionAt, amountAud, dueBy, status |
 | reports.smr | formedAt, terrorismFinancing, dueBy, submittedAt, grounds |
 | documentsToCollect[], releasedRequests | neutral request text |
-| retainUntil | ISO datetime |
-| audit | append-only log with verify() and role-filtered view() |
+| designatedService | false when the sector exemption applies |
+| retainUntil, retention | ISO datetime; {retainUntil, provisional, basis} |
+| auditAnchor | {head, length} to store outside the log, so truncation is detectable |
+| audit | append-only log: append(), verify(anchors), export(), view(role) |
 
 ### Alert routing
 
@@ -255,7 +275,7 @@ ReportingEntity 1───* Case *───1 Customer 1───* Owner
 ### Audit log
 
 - Each entry has `seq`, `at`, `actor`, `action`, `checkpoint`, `detail`, `restricted`, `prevHash` and `hash`, where `hash` is SHA-256 over a stable serialisation of the entry, including `prevHash`.
-- Entries are frozen when written. `verify()` recomputes the chain and reports the first broken entry.
+- Entries are deep-frozen when written and the internal list is never exposed. `verify()` and `verifyChain(entries, {expectedHead, expectedLength})` recompute the chain and report the first broken entry; the anchors catch deletion of the newest entries.
 - In production, write entries to WORM storage (for example, object storage with a compliance-mode retention lock) set to `retainUntil`.
 
 ---
@@ -263,7 +283,8 @@ ReportingEntity 1───* Case *───1 Customer 1───* Owner
 ## Items to confirm before production
 
 1. **Tranche 2 dates and scope.** The 2024 amendments bring lawyers, accountants, conveyancers, real estate, trust and company service providers, and dealers in precious metals and stones into the regime. Confirm the commencement dates and the exact designated services.
-2. **Gaming venues.** Venues with 15 or fewer machines have reduced obligations. That rule is noted in `sectors.js` but not enforced.
+2. **Gaming venues.** Venues with 15 or fewer machines are treated as exempt below AUD 10,000 cash. Confirm the current reduced-obligation rules.
+2a. **Exemptions and registration.** Confirm every `designatedServiceExempt` rule in `sectors.js` and the schemes in `REGISTRATION_REQUIRED`.
 3. **FATF and firm lists.** Review `HIGH_RISK_JURISDICTIONS` after every FATF plenary, and set `ELEVATED_RISK_JURISDICTIONS` from the firm's own risk assessment.
 4. **Public holidays.** Load the calendar for each office's state. The fixture uses Victoria.
 5. **Integrations.** The engine reads screening results, ASIC extracts and electronic verification outcomes as inputs. Calling the providers (screening vendor, ASIC, a document verification service) is a separate adapter layer, not included here.

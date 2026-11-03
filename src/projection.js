@@ -19,14 +19,18 @@ export function projectForAudience(caseRecord, role) {
     return {
       caseId: caseRecord.caseId,
       sector: caseRecord.sector,
+      designatedService: caseRecord.designatedService,
       state: caseRecord.state,
       risk: caseRecord.risk,
       checkpoints: caseRecord.checkpoints,
       alerts: caseRecord.alerts,
       reports: caseRecord.reports,
       documentsToCollect: caseRecord.documentsToCollect,
+      releasedRequests: caseRecord.releasedRequests,
       retainUntil: caseRecord.retainUntil,
-      auditTrail: caseRecord.audit.view({ restrictedAccess: true }),
+      retention: caseRecord.retention,
+      auditAnchor: caseRecord.auditAnchor,
+      auditTrail: caseRecord.audit.view(role),
     };
   }
 

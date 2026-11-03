@@ -3,6 +3,23 @@
 
 const DAY_MS = 86400000;
 
+/** Throws unless the value is a parseable ISO date-time. */
+export function assertInstant(iso, label = 'timestamp') {
+  if (typeof iso !== 'string' || Number.isNaN(Date.parse(iso))) throw new TypeError(`${label} must be an ISO date-time string (got ${iso})`);
+  return iso;
+}
+
+/** Compares instants numerically, so "…Z" and "…000Z" forms compare correctly. */
+export function isAfter(aIso, bIso) {
+  return Date.parse(aIso) > Date.parse(bIso);
+}
+
+export function addMonths(iso, months) {
+  const d = new Date(iso);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  return d.toISOString();
+}
+
 export function addHours(iso, hours) {
   return new Date(Date.parse(iso) + hours * 3600000).toISOString();
 }
@@ -49,6 +66,8 @@ function endOfLocalDay({ y, m, d }, timeZone) {
  * The deadline is the end of the final business day, local time.
  */
 export function addBusinessDays(iso, days, holidays = [], timeZone = DEFAULT_TIME_ZONE) {
+  assertInstant(iso, 'Business-day start');
+  for (const h of holidays) if (!/^\d{4}-\d{2}-\d{2}$/.test(h)) throw new TypeError(`Holiday must be a local YYYY-MM-DD date (got ${h})`);
   const start = localDate(iso, timeZone);
   const cursor = new Date(Date.UTC(start.y, start.m - 1, start.d, 12));
   let added = 0;
