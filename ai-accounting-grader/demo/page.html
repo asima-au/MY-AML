@@ -1,0 +1,190 @@
+<title>Accounting Answer Grader</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: Object.fromEntries(
+          ["bg", "surface", "surface-2", "ink", "muted", "line", "brand", "brand-soft", "on-brand", "ok", "ok-soft", "warn", "warn-soft", "crit", "crit-soft"]
+            .map((n) => [n, `rgb(var(--${n}) / <alpha-value>)`]),
+        ),
+        fontFamily: {
+          display: ['"Bricolage Grotesque"', "ui-sans-serif", "system-ui", "sans-serif"],
+          sans: ["Geist", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+          mono: ['"Geist Mono"', "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        },
+      },
+    },
+  };
+</script>
+<style>
+  /* Layout: a reviewer's workbench. Task list on the left; on the right the test prompt, the AI answer to review, then the rating, findings and the correct answer. */
+  :root {
+    --bg: 245 246 243; --surface: 255 255 255; --surface-2: 236 238 232; --ink: 24 28 22; --muted: 88 94 82; --line: 218 221 211;
+    --brand: 52 84 46; --brand-soft: 226 236 220; --on-brand: 255 255 255;
+    --ok: 21 112 56; --ok-soft: 220 247 229; --warn: 133 81 6; --warn-soft: 254 243 199; --crit: 185 28 28; --crit-soft: 254 226 226;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: 16 18 14; --surface: 24 27 22; --surface-2: 33 37 30; --ink: 232 236 226; --muted: 158 166 150; --line: 48 54 44;
+      --brand: 156 204 140; --brand-soft: 36 52 32; --on-brand: 14 24 12;
+      --ok: 74 222 128; --ok-soft: 14 52 31; --warn: 250 204 21; --warn-soft: 60 46 8; --crit: 252 129 129; --crit-soft: 72 22 22;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: 16 18 14; --surface: 24 27 22; --surface-2: 33 37 30; --ink: 232 236 226; --muted: 158 166 150; --line: 48 54 44;
+    --brand: 156 204 140; --brand-soft: 36 52 32; --on-brand: 14 24 12;
+    --ok: 74 222 128; --ok-soft: 14 52 31; --warn: 250 204 21; --warn-soft: 60 46 8; --crit: 252 129 129; --crit-soft: 72 22 22;
+    color-scheme: dark;
+  }
+  body { background: rgb(var(--bg)); color: rgb(var(--ink)); font-family: Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  @media (min-width: 640px) { .gutter { padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); } }
+  h1, h2, h3 { text-wrap: balance; }
+  .tabular { font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+</style>
+
+<div class="min-h-full">
+  <header class="border-b border-line">
+    <div class="gutter mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-3 py-5">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[.14em] text-brand">AI training · accountant reviewer</p>
+        <h1 class="mt-1 font-display text-2xl font-bold tracking-tight sm:text-3xl">Accounting Answer Grader</h1>
+        <p class="mt-1 max-w-2xl text-sm text-muted">Give a model a test prompt, paste its answer, and get a 1–5 rating, the specific errors, and the answer a careful professional would give.</p>
+      </div>
+      <p class="text-xs text-muted">12 prompts · AASB / IFRS · Australian GST</p>
+    </div>
+  </header>
+
+  <main class="gutter mx-auto grid max-w-7xl gap-6 py-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+    <nav aria-label="Test prompts" class="min-w-0">
+      <div id="tasks" class="flex gap-2 overflow-x-auto pb-2 lg:block lg:space-y-5 lg:overflow-visible lg:pb-0"></div>
+    </nav>
+
+    <div class="min-w-0 space-y-5">
+      <section aria-labelledby="task-title" class="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+        <p id="task-meta" class="text-xs font-medium text-muted"></p>
+        <h2 id="task-title" class="mt-1 font-display text-xl font-bold"></h2>
+        <p id="task-prompt" class="mt-3 max-w-[70ch] leading-relaxed"></p>
+        <button type="button" id="copy-prompt" class="mt-4 rounded-lg border border-line px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">Copy prompt</button>
+        <span id="copy-status" class="ml-2 text-xs text-muted" role="status"></span>
+      </section>
+
+      <section aria-labelledby="answer-title" class="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="answer-title" class="font-display text-lg font-bold">The model's answer</h2>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" id="load-flawed" class="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">Load a flawed AI answer</button>
+            <button type="button" id="load-correct" class="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">Load a correct answer</button>
+          </div>
+        </div>
+        <label for="answer" class="sr-only">Answer to grade</label>
+        <textarea id="answer" rows="9" spellcheck="false" placeholder="Paste the model's answer here. Journal lines can be Dr/Cr lines, Debit/Credit lines or a markdown table." class="mt-3 w-full resize-y rounded-xl border border-line bg-bg p-3 font-mono text-sm leading-relaxed focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"></textarea>
+        <button type="button" id="grade" class="mt-3 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2">Grade answer</button>
+      </section>
+
+      <div id="result" class="space-y-5" aria-live="polite"></div>
+    </div>
+  </main>
+
+  <footer class="gutter mx-auto max-w-7xl pb-8 text-xs text-muted">
+    The grader checks structure, figures, arithmetic and known failure patterns for these 12 prompts. It does not replace your own review: read the reasoning too before you rate.
+  </footer>
+</div>
+
+<script>/*__GRADER_BUNDLE__*/</script>
+<script>
+"use strict";
+(() => {
+  const G = window.Grader;
+  const $ = (id) => document.getElementById(id);
+  function h(tag, attrs = {}, ...children) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v === undefined || v === null || v === false) continue;
+      if (k === "class") el.className = v;
+      else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? "" : String(v));
+    }
+    for (const c of children.flat()) if (c !== null && c !== undefined && c !== false) el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    return el;
+  }
+
+  const TONE = { standard: "bg-crit-soft text-crit", balance: "bg-crit-soft text-crit", arithmetic: "bg-crit-soft text-crit", amount: "bg-warn-soft text-warn", side: "bg-warn-soft text-warn", missing: "bg-warn-soft text-warn", figure: "bg-warn-soft text-warn", extra: "bg-surface-2 text-muted", concept: "bg-surface-2 text-muted" };
+  const RATING_TONE = { 5: "text-ok", 4: "text-ok", 3: "text-warn", 2: "text-crit", 1: "text-crit" };
+  let current = G.ITEMS[0];
+
+  function renderTasks() {
+    const domains = [...new Set(G.ITEMS.map((i) => i.domain))];
+    $("tasks").replaceChildren(...domains.map((d) => h("div", { class: "contents lg:block" },
+      h("p", { class: "hidden px-2 text-[11px] font-semibold uppercase tracking-[.12em] text-muted lg:block" }, d),
+      h("ul", { class: "contents lg:mt-1.5 lg:block lg:space-y-1" }, G.ITEMS.filter((i) => i.domain === d).map((i) => {
+        const on = i.id === current.id;
+        return h("li", { class: "shrink-0" }, h("button", { type: "button", "aria-current": on ? "true" : null, onclick: () => select(i),
+          class: `w-56 rounded-xl border px-3 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand lg:w-full ${on ? "border-brand bg-brand-soft" : "border-transparent hover:bg-surface"}` },
+          h("span", { class: "mr-2 font-mono text-xs text-muted" }, i.id), i.title));
+      })))));
+  }
+
+  function select(item) {
+    current = item;
+    $("task-meta").textContent = `${item.id} · ${item.domain} · ${item.standard}`;
+    $("task-title").textContent = item.title;
+    $("task-prompt").textContent = item.prompt;
+    $("copy-status").textContent = "";
+    $("answer").value = item.flawed;
+    renderTasks();
+    gradeNow();
+  }
+
+  function gradeNow() {
+    const text = $("answer").value.trim();
+    if (!text) { $("result").replaceChildren(h("p", { class: "text-sm text-muted" }, "Paste an answer and select Grade answer.")); return; }
+    const r = G.grade(current, text);
+    const groups = {};
+    for (const f of r.findings) (groups[f.label] ||= []).push(f);
+
+    $("result").replaceChildren(
+      h("section", { class: "grid gap-5 rounded-2xl border border-line bg-surface p-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:p-6", "aria-labelledby": "rating-title" },
+        h("div", { class: "flex items-center gap-4 sm:block" },
+          h("p", { id: "rating-title", class: `font-display text-5xl font-bold leading-none ${RATING_TONE[r.rating]}` }, `${r.rating}`, h("span", { class: "text-xl text-muted" }, " / 5")),
+          h("div", { class: "mt-0 flex gap-1 sm:mt-3", "aria-hidden": "true" }, [1, 2, 3, 4, 5].map((n) => h("span", { class: `h-2 w-6 rounded-full ${n <= r.rating ? "bg-brand" : "bg-surface-2"}` })))),
+        h("div", { class: "min-w-0" },
+          h("p", { class: "font-semibold" }, r.verdict),
+          h("p", { class: "tabular mt-1 text-sm text-muted" }, `${Math.round(r.accuracy * 100)}% of expected entries and figures correct · ${r.parsedLines.length} journal line${r.parsedLines.length === 1 ? "" : "s"} read · ${r.arithmetic.length} calculation${r.arithmetic.length === 1 ? "" : "s"} checked`),
+          r.findings.length
+            ? h("ul", { class: "mt-4 space-y-2" }, Object.entries(groups).flatMap(([label, fs]) => fs.map((f) =>
+                h("li", { class: "flex flex-col gap-1 text-sm sm:flex-row sm:items-start sm:gap-3" },
+                  h("span", { class: `shrink-0 self-start rounded-full px-2.5 py-0.5 text-xs font-semibold ${TONE[f.category]}` }, label),
+                  h("span", {}, f.message)))))
+            : h("p", { class: "mt-4 text-sm text-ok" }, "No issues found."))),
+      r.parsedLines.length ? h("section", { class: "rounded-2xl border border-line bg-surface p-5 sm:p-6", "aria-labelledby": "read-title" },
+        h("h3", { id: "read-title", class: "font-display text-base font-bold" }, "What the grader read"),
+        h("div", { class: "mt-3 overflow-x-auto" }, h("table", { class: "w-full min-w-[420px] text-left text-sm" },
+          h("thead", {}, h("tr", { class: "text-xs text-muted" }, h("th", { class: "py-1.5 pr-3 font-medium" }, "As written"), h("th", { class: "py-1.5 pr-3 font-medium" }, "Read as"), h("th", { class: "py-1.5 pr-3 text-right font-medium" }, "Debit"), h("th", { class: "py-1.5 text-right font-medium" }, "Credit"))),
+          h("tbody", { class: "divide-y divide-line" }, r.parsedLines.map((l) => h("tr", {},
+            h("td", { class: "py-1.5 pr-3" }, l.account),
+            h("td", { class: `py-1.5 pr-3 ${l.canonical ? "text-muted" : "text-warn"}` }, l.canonical || "Not recognised"),
+            h("td", { class: "tabular py-1.5 pr-3 text-right" }, l.side === "dr" ? l.amount.toLocaleString("en-AU") : ""),
+            h("td", { class: "tabular py-1.5 text-right" }, l.side === "cr" ? l.amount.toLocaleString("en-AU") : ""))))))) : null,
+      h("section", { class: "rounded-2xl border border-brand/40 bg-brand-soft/40 p-5 sm:p-6", "aria-labelledby": "model-title" },
+        h("h3", { id: "model-title", class: "font-display text-base font-bold" }, "The answer a careful professional would give"),
+        h("pre", { class: "mt-3 overflow-x-auto whitespace-pre-wrap font-mono text-sm leading-relaxed" }, r.modelAnswer)));
+  }
+
+  $("grade").addEventListener("click", gradeNow);
+  $("load-flawed").addEventListener("click", () => { $("answer").value = current.flawed; gradeNow(); });
+  $("load-correct").addEventListener("click", () => { $("answer").value = G.modelAnswer(current); gradeNow(); });
+  $("copy-prompt").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(current.prompt); $("copy-status").textContent = "Copied."; }
+    catch { const r = document.createRange(); r.selectNodeContents($("task-prompt")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $("copy-status").textContent = "Selected. Press Ctrl+C or Cmd+C."; }
+  });
+  select(current);
+})();
+</script>
